@@ -1,7 +1,9 @@
 import 'package:equatable/equatable.dart';
+
 import 'order_media.dart';
 
 class ShippingDetails extends Equatable {
+  final String? shippingCompany;
   final String? waybillNumber;
   final String? trackingUrl;
   final String? labelUrl;
@@ -12,6 +14,7 @@ class ShippingDetails extends Equatable {
   final String? courierStatusCode;
 
   const ShippingDetails({
+    this.shippingCompany,
     this.waybillNumber,
     this.trackingUrl,
     this.labelUrl,
@@ -23,33 +26,45 @@ class ShippingDetails extends Equatable {
   });
 
   factory ShippingDetails.fromJson(Map<String, dynamic> json) {
-    final rawPhotos = (json['waybill_photo_urls'] ?? json['waybill_photos']) as List<dynamic>? ?? [];
+    final rawPhotos =
+        (json['waybill_photo_urls'] ?? json['waybill_photos'])
+            as List<dynamic>? ??
+        [];
     final photos = rawPhotos
         .whereType<Map<String, dynamic>>()
         .map((p) => OrderMedia.fromJson(p))
         .toList();
 
+    // Support both new keys (status / status_text) and legacy keys
+    // (internal_status / internal_status_text) from older API versions.
+    final internalStatus =
+        (json['internal_status'] ?? json['status'])?.toString();
+    final internalStatusText =
+        (json['internal_status_text'] ?? json['status_text'])?.toString();
+
     return ShippingDetails(
+      shippingCompany: json['shipping_company']?.toString(),
       waybillNumber: json['waybill_number']?.toString(),
       trackingUrl: json['tracking_url']?.toString(),
       labelUrl: json['label_url']?.toString(),
       hasWaybillPhotos: json['has_waybill_photos'] == true || photos.isNotEmpty,
       waybillPhotos: photos,
-      internalStatus: json['internal_status']?.toString(),
-      internalStatusText: json['internal_status_text']?.toString(),
+      internalStatus: internalStatus,
+      internalStatusText: internalStatusText,
       courierStatusCode: json['courier_status_code']?.toString(),
     );
   }
 
   @override
   List<Object?> get props => [
-        waybillNumber,
-        trackingUrl,
-        labelUrl,
-        hasWaybillPhotos,
-        waybillPhotos,
-        internalStatus,
-        internalStatusText,
-        courierStatusCode,
-      ];
+    shippingCompany,
+    waybillNumber,
+    trackingUrl,
+    labelUrl,
+    hasWaybillPhotos,
+    waybillPhotos,
+    internalStatus,
+    internalStatusText,
+    courierStatusCode,
+  ];
 }

@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+
 import 'order_item.dart';
 import 'order_media.dart';
 import 'order_status.dart';
@@ -13,6 +14,10 @@ class OrderDetails extends Equatable {
   final String? phone;
   final String? whatsapp;
   final String? address;
+  final String? total;
+  final String? remainingAmount;
+  final String? remainingType;
+  final String? warehouseInvoiceUrl;
   final bool canUploadPhotos;
   final bool hasShipmentPhotos;
   final bool hasWaybillPhotos;
@@ -35,6 +40,10 @@ class OrderDetails extends Equatable {
     this.phone,
     this.whatsapp,
     this.address,
+    this.total,
+    this.remainingAmount,
+    this.remainingType,
+    this.warehouseInvoiceUrl,
     required this.canUploadPhotos,
     required this.hasShipmentPhotos,
     required this.hasWaybillPhotos,
@@ -71,28 +80,36 @@ class OrderDetails extends Equatable {
 
     // Parse photos arrays: backend returns media objects.
     // Supports both new API response keys (*_urls) and legacy keys (*_photos / invoices).
-    final rawShipmentPhotos = (json['shipment_photo_urls'] ?? json['shipment_photos']) as List<dynamic>? ?? [];
+    final rawShipmentPhotos =
+        (json['shipment_photo_urls'] ?? json['shipment_photos'])
+            as List<dynamic>? ??
+        [];
     final shipmentPhotos = rawShipmentPhotos
         .whereType<Map<String, dynamic>>()
         .map((item) => OrderMedia.fromJson(item))
         .toList();
 
-    final rawShippingDetails = json['shipping_details'] as Map<String, dynamic>?;
+    final rawShippingDetails =
+        json['shipping_details'] as Map<String, dynamic>?;
     final shippingDetails = rawShippingDetails != null
         ? ShippingDetails.fromJson(rawShippingDetails)
         : null;
 
-    final rawWaybillPhotos = (json['waybill_photo_urls'] ??
-            json['waybill_photos'] ??
-            rawShippingDetails?['waybill_photos']) as List<dynamic>? ??
+    final rawWaybillPhotos =
+        (json['waybill_photo_urls'] ??
+                json['waybill_photos'] ??
+                rawShippingDetails?['waybill_photos'])
+            as List<dynamic>? ??
         [];
     final waybillPhotos = rawWaybillPhotos
         .whereType<Map<String, dynamic>>()
         .map((item) => OrderMedia.fromJson(item))
         .toList();
 
-    final rawExternalInvoices = (json['external_warehouse_invoice_urls'] ??
-            json['external_warehouse_invoices']) as List<dynamic>? ??
+    final rawExternalInvoices =
+        (json['external_warehouse_invoice_urls'] ??
+                json['external_warehouse_invoices'])
+            as List<dynamic>? ??
         [];
     final externalWarehouseInvoices = rawExternalInvoices
         .whereType<Map<String, dynamic>>()
@@ -124,11 +141,20 @@ class OrderDetails extends Equatable {
       phone: json['phone']?.toString(),
       whatsapp: json['whatsapp']?.toString(),
       address: json['address']?.toString(),
+      total: (json['total'] ?? json['total_price'])?.toString(),
+      remainingAmount: json['remaining_amount']?.toString(),
+      remainingType: json['remaining_type']?.toString(),
       canUploadPhotos: json['can_upload_photos'] == true,
-      hasShipmentPhotos: json['has_shipment_photos'] == true || shipmentPhotos.isNotEmpty,
-      hasWaybillPhotos: json['has_waybill_photos'] == true || waybillPhotos.isNotEmpty,
+      hasShipmentPhotos:
+          json['has_shipment_photos'] == true || shipmentPhotos.isNotEmpty,
+      hasWaybillPhotos:
+          json['has_waybill_photos'] == true || waybillPhotos.isNotEmpty,
       hasExternalWarehouseInvoice:
-          json['has_external_warehouse_invoice'] == true || externalWarehouseInvoices.isNotEmpty,
+          json['has_external_warehouse_invoice'] == true ||
+          externalWarehouseInvoices.isNotEmpty ||
+          (json['warehouse_invoice_url'] != null &&
+              json['warehouse_invoice_url'].toString().trim().isNotEmpty),
+      warehouseInvoiceUrl: json['warehouse_invoice_url']?.toString(),
       shipmentPhotos: shipmentPhotos,
       waybillPhotos: waybillPhotos,
       externalWarehouseInvoices: externalWarehouseInvoices,
@@ -148,25 +174,29 @@ class OrderDetails extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        orderNumber,
-        status,
-        rawStatus,
-        customerName,
-        phone,
-        whatsapp,
-        address,
-        canUploadPhotos,
-        hasShipmentPhotos,
-        hasWaybillPhotos,
-        hasExternalWarehouseInvoice,
-        shipmentPhotos,
-        waybillPhotos,
-        externalWarehouseInvoices,
-        items,
-        shippingDetails,
-        createdAt,
-        confirmedAt,
-        shippedAt,
-      ];
+    id,
+    orderNumber,
+    status,
+    rawStatus,
+    customerName,
+    phone,
+    whatsapp,
+    address,
+    total,
+    remainingAmount,
+    remainingType,
+    warehouseInvoiceUrl,
+    canUploadPhotos,
+    hasShipmentPhotos,
+    hasWaybillPhotos,
+    hasExternalWarehouseInvoice,
+    shipmentPhotos,
+    waybillPhotos,
+    externalWarehouseInvoices,
+    items,
+    shippingDetails,
+    createdAt,
+    confirmedAt,
+    shippedAt,
+  ];
 }

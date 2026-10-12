@@ -29,6 +29,13 @@ abstract class OrdersRepository {
     void Function(int sent, int total)? onSendProgress,
   });
 
+  Future<OrderDetails> updateOrderStatus({
+    required int orderId,
+    required String status,
+    String? reason,
+    bool? restoreStock,
+  });
+
   Set<String> getUploadedHashes(int orderId);
 }
 
@@ -54,19 +61,10 @@ class OrdersRepositoryImpl implements OrdersRepository {
         perPage: perPage,
       );
 
-      final openOrders = result.orders
-          .where((order) => order.status.isOpen)
-          .toList();
-
-      return PaginatedOrders(
-        currentPage: result.currentPage,
-        lastPage: result.lastPage,
-        perPage: result.perPage,
-        total: result.total,
-        nextPageUrl: result.nextPageUrl,
-        prevPageUrl: result.prevPageUrl,
-        orders: openOrders,
-      );
+      // The backend is the source of truth for which orders belong to the
+      // open-orders tab. Client-side status filtering was discarding orders
+      // (e.g. shipped) that the backend legitimately includes in this tab.
+      return result;
     } on ServerException catch (e) {
       throw ServerFailure(e.message, statusCode: e.statusCode);
     } on NetworkException catch (e) {
@@ -91,19 +89,9 @@ class OrdersRepositoryImpl implements OrdersRepository {
         perPage: perPage,
       );
 
-      final completedOrders = result.orders
-          .where((order) => order.status.isCompleted)
-          .toList();
-
-      return PaginatedOrders(
-        currentPage: result.currentPage,
-        lastPage: result.lastPage,
-        perPage: result.perPage,
-        total: result.total,
-        nextPageUrl: result.nextPageUrl,
-        prevPageUrl: result.prevPageUrl,
-        orders: completedOrders,
-      );
+      // The backend is the source of truth for which orders belong to the
+      // completed tab. Return all orders the backend provides.
+      return result;
     } on ServerException catch (e) {
       throw ServerFailure(e.message, statusCode: e.statusCode);
     } on NetworkException catch (e) {
@@ -197,5 +185,31 @@ class OrdersRepositoryImpl implements OrdersRepository {
   @override
   Set<String> getUploadedHashes(int orderId) {
     return mediaHashStorage.getUploadedHashes(orderId);
+  }
+
+  @override
+  Future<OrderDetails> updateOrderStatus({
+    required int orderId,
+    required String status,
+    String? reason,
+    bool? restoreStock,
+  }) async {
+    try {
+      return await remoteDataSource.updateOrderStatus(
+        orderId: orderId,
+        status: status,
+        reason: reason,
+        restoreStock: restoreStock,
+      );
+    } on ServerException catch (e) {
+      throw ServerFailure(e.message, statusCode: e.statusCode);
+    } on NetworkException catch (e) {
+      throw NetworkFailure(e.message);
+    } on UnauthorizedException catch (e) {
+      throw UnauthorizedFailure(e.message);
+    } catch (e) {
+      if (e is Failure) rethrow;
+      throw const ServerFailure(AppStrings.errorStatusUpdate);
+    }
   }
 }

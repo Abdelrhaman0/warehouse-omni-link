@@ -60,4 +60,41 @@ class OrderDetailsCubit extends Cubit<OrderDetailsState> {
     _currentOrderId = refreshedOrder.id;
     emit(OrderDetailsLoaded(order: refreshedOrder));
   }
+
+  /// Sends a PUT request to change the order's status.
+  /// While the request is in-flight, emits [OrderDetailsStatusUpdating].
+  /// On success, emits [OrderDetailsLoaded] with the refreshed order.
+  /// On failure, emits [OrderDetailsStatusUpdateFailure] so the UI can
+  /// show an error message while keeping the current order visible.
+  ///
+  /// For `cancelled` status, [reason] and [restoreStock] must be provided.
+  Future<void> updateOrderStatus({
+    required OrderDetails currentOrder,
+    required String newStatus,
+    String? reason,
+    bool? restoreStock,
+  }) async {
+    emit(OrderDetailsStatusUpdating(order: currentOrder));
+
+    try {
+      final updated = await ordersRepository.updateOrderStatus(
+        orderId: currentOrder.id,
+        status: newStatus,
+        reason: reason,
+        restoreStock: restoreStock,
+      );
+      _currentOrderId = updated.id;
+      emit(OrderDetailsLoaded(order: updated));
+    } on Failure catch (e) {
+      emit(OrderDetailsStatusUpdateFailure(
+        order: currentOrder,
+        message: e.message,
+      ));
+    } catch (_) {
+      emit(OrderDetailsStatusUpdateFailure(
+        order: currentOrder,
+        message: AppStrings.errorStatusUpdate,
+      ));
+    }
+  }
 }

@@ -47,7 +47,14 @@ enum OrderStatus {
     if (normalized.contains('معلق') || normalized.contains('انتظار') || normalized == 'pending') {
       return OrderStatus.pending;
     }
-    if (normalized.contains('ملغ') || normalized == 'cancelled' || normalized == 'canceled') {
+    if (normalized.contains('ملغ') ||
+        normalized.contains('إلغ') ||
+        normalized.contains('ألغ') ||
+        normalized.contains('الغ') ||
+        normalized.contains('لغي') ||
+        normalized.contains('لغى') ||
+        normalized.contains('لغا') ||
+        normalized.contains('cancel')) {
       return OrderStatus.cancelled;
     }
 

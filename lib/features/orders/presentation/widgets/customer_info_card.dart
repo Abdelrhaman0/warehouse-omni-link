@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/localization/app_strings.dart';
 import '../../models/order_details.dart';
@@ -7,6 +9,38 @@ class CustomerInfoCard extends StatelessWidget {
   final OrderDetails order;
 
   const CustomerInfoCard({super.key, required this.order});
+
+  Future<void> _makePhoneCall(BuildContext context, String phoneNumber) async {
+    final trimmed = phoneNumber.trim();
+
+    if (trimmed.isEmpty) return;
+
+    final Uri phoneUri = Uri(scheme: 'tel', path: trimmed);
+
+    try {
+      final launched = await launchUrl(phoneUri);
+
+      if (!launched && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(AppStrings.couldNotLaunchUrl),
+            duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(AppStrings.couldNotLaunchUrl),
+            duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,19 +70,24 @@ class CustomerInfoCard extends StatelessWidget {
               ],
             ),
             const Divider(height: 20, color: AppColors.divider),
+
             _buildDetailItem(
               icon: Icons.person_outline,
               label: AppStrings.customerName,
               value: order.customerName,
             ),
+
             if (order.phone != null && order.phone!.isNotEmpty) ...[
               const SizedBox(height: 10),
               _buildDetailItem(
                 icon: Icons.phone_outlined,
                 label: AppStrings.customerPhone,
                 value: order.phone!,
+                textColor: Colors.blue,
+                onTap: () => _makePhoneCall(context, order.phone!),
               ),
             ],
+
             if (order.whatsapp != null && order.whatsapp!.isNotEmpty) ...[
               const SizedBox(height: 10),
               _buildDetailItem(
@@ -57,12 +96,42 @@ class CustomerInfoCard extends StatelessWidget {
                 value: order.whatsapp!,
               ),
             ],
+
             if (order.address != null && order.address!.isNotEmpty) ...[
               const SizedBox(height: 10),
               _buildDetailItem(
                 icon: Icons.location_on_outlined,
                 label: AppStrings.customerAddress,
                 value: order.address!,
+              ),
+            ],
+
+            if (order.total != null && order.total!.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              _buildDetailItem(
+                icon: Icons.payments_outlined,
+                label: AppStrings.orderTotal,
+                value: order.total!,
+              ),
+            ],
+
+            if (order.remainingAmount != null &&
+                order.remainingAmount!.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              _buildDetailItem(
+                icon: Icons.account_balance_wallet_outlined,
+                label: AppStrings.remainingAmount,
+                value: order.remainingAmount!,
+              ),
+            ],
+
+            if (order.remainingType != null &&
+                order.remainingType!.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              _buildDetailItem(
+                icon: Icons.category_outlined,
+                label: AppStrings.remainingType,
+                value: order.remainingType!,
               ),
             ],
           ],
@@ -75,30 +144,39 @@ class CustomerInfoCard extends StatelessWidget {
     required IconData icon,
     required String label,
     required String value,
+    Color? textColor,
+    VoidCallback? onTap,
   }) {
-    return Row(
+    final content = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(icon, size: 18, color: AppColors.textMuted),
         const SizedBox(width: 8),
         Text(
           '$label: ',
-          style: const TextStyle(
-            fontSize: 13,
-            color: AppColors.textSecondary,
-          ),
+          style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
         ),
         Expanded(
           child: Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
+              color: textColor ?? AppColors.textPrimary,
             ),
           ),
         ),
       ],
     );
+
+    if (onTap != null) {
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(4),
+        child: content,
+      );
+    }
+
+    return content;
   }
 }

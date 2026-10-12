@@ -2,9 +2,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:warehouse_store_keeper/core/localization/app_strings.dart';
 import 'package:warehouse_store_keeper/features/orders/models/order_details.dart';
 import 'package:warehouse_store_keeper/features/orders/models/order_media.dart';
 import 'package:warehouse_store_keeper/features/orders/models/order_summary.dart';
+import 'package:warehouse_store_keeper/features/orders/presentation/widgets/external_warehouse_invoices_section.dart';
 import 'package:warehouse_store_keeper/features/orders/presentation/widgets/order_card.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -98,10 +100,12 @@ void main() {
   // ── 2. OrderDetails: new fields are parsed ───────────────────────────────
   group('OrderDetails – external_warehouse_invoices field parsing', () {
     test('parses one invoice correctly when backend returns one item', () {
-      final json = _baseOrderJson(overrides: {
-        'has_external_warehouse_invoice': true,
-        'external_warehouse_invoices': [_invoiceJson],
-      });
+      final json = _baseOrderJson(
+        overrides: {
+          'has_external_warehouse_invoice': true,
+          'external_warehouse_invoices': [_invoiceJson],
+        },
+      );
 
       final order = OrderDetails.fromJson(json);
 
@@ -122,10 +126,12 @@ void main() {
         'url': 'https://test.omni-link.net/storage/1200/invoice2.png',
         'created_at': '2026-09-26T12:00:00+00:00',
       };
-      final json = _baseOrderJson(overrides: {
-        'has_external_warehouse_invoice': true,
-        'external_warehouse_invoices': [_invoiceJson, secondInvoice],
-      });
+      final json = _baseOrderJson(
+        overrides: {
+          'has_external_warehouse_invoice': true,
+          'external_warehouse_invoices': [_invoiceJson, secondInvoice],
+        },
+      );
 
       final order = OrderDetails.fromJson(json);
 
@@ -134,23 +140,44 @@ void main() {
       expect(order.externalWarehouseInvoices[1].id, 1200);
     });
 
-    test('hasExternalWarehouseInvoice is false when both flag and list are absent', () {
-      final json = _baseOrderJson();
+    test(
+      'hasExternalWarehouseInvoice is false when both flag and list are absent',
+      () {
+        final json = _baseOrderJson();
+        final order = OrderDetails.fromJson(json);
+
+        expect(order.hasExternalWarehouseInvoice, isFalse);
+        expect(order.externalWarehouseInvoices, isEmpty);
+      },
+    );
+
+    test('hasExternalWarehouseInvoice is false when flag is false and list is empty', () {
+      final json = _baseOrderJson(
+        overrides: {
+          'has_external_warehouse_invoice': false,
+          'external_warehouse_invoices': <dynamic>[],
+        },
+      );
       final order = OrderDetails.fromJson(json);
 
       expect(order.hasExternalWarehouseInvoice, isFalse);
       expect(order.externalWarehouseInvoices, isEmpty);
     });
 
-    test('hasExternalWarehouseInvoice is false when flag is false and list is empty', () {
-      final json = _baseOrderJson(overrides: {
-        'has_external_warehouse_invoice': false,
-        'external_warehouse_invoices': <dynamic>[],
-      });
+    test('parses warehouse_invoice_url correctly and derives hasExternalWarehouseInvoice', () {
+      final json = _baseOrderJson(
+        overrides: {
+          'warehouse_invoice_url': 'https://omni-link.net/storage/1698/invoice-ORD-h9kTMcuiMT-rjb-wns.pdf',
+        },
+      );
+
       final order = OrderDetails.fromJson(json);
 
-      expect(order.hasExternalWarehouseInvoice, isFalse);
-      expect(order.externalWarehouseInvoices, isEmpty);
+      expect(
+        order.warehouseInvoiceUrl,
+        'https://omni-link.net/storage/1698/invoice-ORD-h9kTMcuiMT-rjb-wns.pdf',
+      );
+      expect(order.hasExternalWarehouseInvoice, isTrue);
     });
   });
 
@@ -162,46 +189,64 @@ void main() {
       expect(() => OrderDetails.fromJson(json), returnsNormally);
     });
 
-    test('externalWarehouseInvoices defaults to an empty list when key is missing', () {
-      final order = OrderDetails.fromJson(_baseOrderJson());
-      expect(order.externalWarehouseInvoices, isEmpty);
-    });
+    test(
+      'externalWarehouseInvoices defaults to an empty list when key is missing',
+      () {
+        final order = OrderDetails.fromJson(_baseOrderJson());
+        expect(order.externalWarehouseInvoices, isEmpty);
+      },
+    );
 
-    test('hasExternalWarehouseInvoice defaults to false when key is missing', () {
-      final order = OrderDetails.fromJson(_baseOrderJson());
-      expect(order.hasExternalWarehouseInvoice, isFalse);
-    });
+    test(
+      'hasExternalWarehouseInvoice defaults to false when key is missing',
+      () {
+        final order = OrderDetails.fromJson(_baseOrderJson());
+        expect(order.hasExternalWarehouseInvoice, isFalse);
+      },
+    );
 
-    test('null value for external_warehouse_invoices is treated as empty list', () {
-      final json = _baseOrderJson(overrides: {
-        'has_external_warehouse_invoice': null,
-        'external_warehouse_invoices': null,
-      });
-      final order = OrderDetails.fromJson(json);
+    test(
+      'null value for external_warehouse_invoices is treated as empty list',
+      () {
+        final json = _baseOrderJson(
+          overrides: {
+            'has_external_warehouse_invoice': null,
+            'external_warehouse_invoices': null,
+          },
+        );
+        final order = OrderDetails.fromJson(json);
 
-      expect(order.externalWarehouseInvoices, isEmpty);
-      expect(order.hasExternalWarehouseInvoice, isFalse);
-    });
+        expect(order.externalWarehouseInvoices, isEmpty);
+        expect(order.hasExternalWarehouseInvoice, isFalse);
+      },
+    );
   });
 
   // ── 4. Flag derivation logic ─────────────────────────────────────────────
   group('hasExternalWarehouseInvoice flag derivation', () {
-    test('is true when flag is true but list is empty (flag takes precedence)', () {
-      final json = _baseOrderJson(overrides: {
-        'has_external_warehouse_invoice': true,
-        'external_warehouse_invoices': <dynamic>[],
-      });
-      final order = OrderDetails.fromJson(json);
+    test(
+      'is true when flag is true but list is empty (flag takes precedence)',
+      () {
+        final json = _baseOrderJson(
+          overrides: {
+            'has_external_warehouse_invoice': true,
+            'external_warehouse_invoices': <dynamic>[],
+          },
+        );
+        final order = OrderDetails.fromJson(json);
 
-      // Even with an empty list, a truthy backend flag must be respected.
-      expect(order.hasExternalWarehouseInvoice, isTrue);
-    });
+        // Even with an empty list, a truthy backend flag must be respected.
+        expect(order.hasExternalWarehouseInvoice, isTrue);
+      },
+    );
 
     test('is true when flag is false but list is non-empty (list content takes precedence)', () {
-      final json = _baseOrderJson(overrides: {
-        'has_external_warehouse_invoice': false,
-        'external_warehouse_invoices': [_invoiceJson],
-      });
+      final json = _baseOrderJson(
+        overrides: {
+          'has_external_warehouse_invoice': false,
+          'external_warehouse_invoices': [_invoiceJson],
+        },
+      );
       final order = OrderDetails.fromJson(json);
 
       // Defensive: if the list has items the flag should reflect that.
@@ -213,13 +258,15 @@ void main() {
   // ── 5. Robustness: mixed list content ────────────────────────────────────
   group('OrderDetails – robustness when list contains non-Map entries', () {
     test('silently skips plain string entries in the invoice list', () {
-      final json = _baseOrderJson(overrides: {
-        'has_external_warehouse_invoice': true,
-        'external_warehouse_invoices': [
-          'https://not-an-object.example.com/plain-url.png',
-          _invoiceJson, // valid entry
-        ],
-      });
+      final json = _baseOrderJson(
+        overrides: {
+          'has_external_warehouse_invoice': true,
+          'external_warehouse_invoices': [
+            'https://not-an-object.example.com/plain-url.png',
+            _invoiceJson, // valid entry
+          ],
+        },
+      );
 
       final order = OrderDetails.fromJson(json);
 
@@ -232,10 +279,12 @@ void main() {
   // ── 6. Equatable / props integrity ───────────────────────────────────────
   group('OrderDetails – Equatable props include new fields', () {
     test('two identical orders with same invoices are equal', () {
-      final json = _baseOrderJson(overrides: {
-        'has_external_warehouse_invoice': true,
-        'external_warehouse_invoices': [_invoiceJson],
-      });
+      final json = _baseOrderJson(
+        overrides: {
+          'has_external_warehouse_invoice': true,
+          'external_warehouse_invoices': [_invoiceJson],
+        },
+      );
 
       final a = OrderDetails.fromJson(json);
       final b = OrderDetails.fromJson(json);
@@ -243,15 +292,23 @@ void main() {
     });
 
     test('orders differ when invoice lists differ', () {
-      final withInvoice = OrderDetails.fromJson(_baseOrderJson(overrides: {
-        'has_external_warehouse_invoice': true,
-        'external_warehouse_invoices': [_invoiceJson],
-      }));
+      final withInvoice = OrderDetails.fromJson(
+        _baseOrderJson(
+          overrides: {
+            'has_external_warehouse_invoice': true,
+            'external_warehouse_invoices': [_invoiceJson],
+          },
+        ),
+      );
 
-      final withoutInvoice = OrderDetails.fromJson(_baseOrderJson(overrides: {
-        'has_external_warehouse_invoice': false,
-        'external_warehouse_invoices': <dynamic>[],
-      }));
+      final withoutInvoice = OrderDetails.fromJson(
+        _baseOrderJson(
+          overrides: {
+            'has_external_warehouse_invoice': false,
+            'external_warehouse_invoices': <dynamic>[],
+          },
+        ),
+      );
 
       expect(withInvoice, isNot(equals(withoutInvoice)));
     });
@@ -259,23 +316,30 @@ void main() {
 
   // ── 7. OrderSummary: external warehouse invoice field parsing ─────────────
   group('OrderSummary – external_warehouse_invoice field parsing', () {
-    test('parses has_external_warehouse_invoice: false + count 0 correctly', () {
-      final json = _baseOrderSummaryJson(overrides: {
-        'has_external_warehouse_invoice': false,
-        'external_warehouse_invoices_count': 0,
-      });
+    test(
+      'parses has_external_warehouse_invoice: false + count 0 correctly',
+      () {
+        final json = _baseOrderSummaryJson(
+          overrides: {
+            'has_external_warehouse_invoice': false,
+            'external_warehouse_invoices_count': 0,
+          },
+        );
 
-      final order = OrderSummary.fromJson(json);
+        final order = OrderSummary.fromJson(json);
 
-      expect(order.hasExternalWarehouseInvoice, isFalse);
-      expect(order.externalWarehouseInvoicesCount, 0);
-    });
+        expect(order.hasExternalWarehouseInvoice, isFalse);
+        expect(order.externalWarehouseInvoicesCount, 0);
+      },
+    );
 
     test('parses has_external_warehouse_invoice: true + count 1 correctly', () {
-      final json = _baseOrderSummaryJson(overrides: {
-        'has_external_warehouse_invoice': true,
-        'external_warehouse_invoices_count': 1,
-      });
+      final json = _baseOrderSummaryJson(
+        overrides: {
+          'has_external_warehouse_invoice': true,
+          'external_warehouse_invoices_count': 1,
+        },
+      );
 
       final order = OrderSummary.fromJson(json);
 
@@ -284,20 +348,24 @@ void main() {
     });
 
     test('parses has_external_warehouse_invoice: true + count greater than 1 correctly', () {
-      final json = _baseOrderSummaryJson(overrides: {
-        'has_external_warehouse_invoice': true,
-        'external_warehouse_invoices_count': 2,
-      });
+      final json = _baseOrderSummaryJson(
+        overrides: {
+          'has_external_warehouse_invoice': true,
+          'external_warehouse_invoices_count': 2,
+        },
+      );
 
       final order = OrderSummary.fromJson(json);
 
       expect(order.hasExternalWarehouseInvoice, isTrue);
       expect(order.externalWarehouseInvoicesCount, 2);
 
-      final json5 = _baseOrderSummaryJson(overrides: {
-        'has_external_warehouse_invoice': true,
-        'external_warehouse_invoices_count': 5,
-      });
+      final json5 = _baseOrderSummaryJson(
+        overrides: {
+          'has_external_warehouse_invoice': true,
+          'external_warehouse_invoices_count': 5,
+        },
+      );
 
       final order5 = OrderSummary.fromJson(json5);
 
@@ -316,22 +384,29 @@ void main() {
       expect(order.externalWarehouseInvoicesCount, 0);
     });
 
-    test('null values for invoice keys default to false and 0 without crash', () {
-      final json = _baseOrderSummaryJson(overrides: {
-        'has_external_warehouse_invoice': null,
-        'external_warehouse_invoices_count': null,
-      });
-      final order = OrderSummary.fromJson(json);
+    test(
+      'null values for invoice keys default to false and 0 without crash',
+      () {
+        final json = _baseOrderSummaryJson(
+          overrides: {
+            'has_external_warehouse_invoice': null,
+            'external_warehouse_invoices_count': null,
+          },
+        );
+        final order = OrderSummary.fromJson(json);
 
-      expect(order.hasExternalWarehouseInvoice, isFalse);
-      expect(order.externalWarehouseInvoicesCount, 0);
-    });
+        expect(order.hasExternalWarehouseInvoice, isFalse);
+        expect(order.externalWarehouseInvoicesCount, 0);
+      },
+    );
 
     test('string numbers and truthy string values are safely parsed', () {
-      final json = _baseOrderSummaryJson(overrides: {
-        'has_external_warehouse_invoice': 'true',
-        'external_warehouse_invoices_count': '3',
-      });
+      final json = _baseOrderSummaryJson(
+        overrides: {
+          'has_external_warehouse_invoice': 'true',
+          'external_warehouse_invoices_count': '3',
+        },
+      );
       final order = OrderSummary.fromJson(json);
 
       expect(order.hasExternalWarehouseInvoice, isTrue);
@@ -339,18 +414,22 @@ void main() {
     });
 
     test('numeric flag values (1/0) are safely parsed', () {
-      final jsonTrue = _baseOrderSummaryJson(overrides: {
-        'has_external_warehouse_invoice': 1,
-        'external_warehouse_invoices_count': 4,
-      });
+      final jsonTrue = _baseOrderSummaryJson(
+        overrides: {
+          'has_external_warehouse_invoice': 1,
+          'external_warehouse_invoices_count': 4,
+        },
+      );
       final orderTrue = OrderSummary.fromJson(jsonTrue);
       expect(orderTrue.hasExternalWarehouseInvoice, isTrue);
       expect(orderTrue.externalWarehouseInvoicesCount, 4);
 
-      final jsonFalse = _baseOrderSummaryJson(overrides: {
-        'has_external_warehouse_invoice': 0,
-        'external_warehouse_invoices_count': 0,
-      });
+      final jsonFalse = _baseOrderSummaryJson(
+        overrides: {
+          'has_external_warehouse_invoice': 0,
+          'external_warehouse_invoices_count': 0,
+        },
+      );
       final orderFalse = OrderSummary.fromJson(jsonFalse);
       expect(orderFalse.hasExternalWarehouseInvoice, isFalse);
       expect(orderFalse.externalWarehouseInvoicesCount, 0);
@@ -360,10 +439,12 @@ void main() {
   // ── 9. OrderSummary: Equatable props ──────────────────────────────────────
   group('OrderSummary – Equatable props include new fields', () {
     test('two identical summaries are equal', () {
-      final json = _baseOrderSummaryJson(overrides: {
-        'has_external_warehouse_invoice': true,
-        'external_warehouse_invoices_count': 2,
-      });
+      final json = _baseOrderSummaryJson(
+        overrides: {
+          'has_external_warehouse_invoice': true,
+          'external_warehouse_invoices_count': 2,
+        },
+      );
 
       final a = OrderSummary.fromJson(json);
       final b = OrderSummary.fromJson(json);
@@ -372,18 +453,30 @@ void main() {
     });
 
     test('summaries differ when invoice flag or count differs', () {
-      final a = OrderSummary.fromJson(_baseOrderSummaryJson(overrides: {
-        'has_external_warehouse_invoice': true,
-        'external_warehouse_invoices_count': 2,
-      }));
-      final b = OrderSummary.fromJson(_baseOrderSummaryJson(overrides: {
-        'has_external_warehouse_invoice': false,
-        'external_warehouse_invoices_count': 0,
-      }));
-      final c = OrderSummary.fromJson(_baseOrderSummaryJson(overrides: {
-        'has_external_warehouse_invoice': true,
-        'external_warehouse_invoices_count': 3,
-      }));
+      final a = OrderSummary.fromJson(
+        _baseOrderSummaryJson(
+          overrides: {
+            'has_external_warehouse_invoice': true,
+            'external_warehouse_invoices_count': 2,
+          },
+        ),
+      );
+      final b = OrderSummary.fromJson(
+        _baseOrderSummaryJson(
+          overrides: {
+            'has_external_warehouse_invoice': false,
+            'external_warehouse_invoices_count': 0,
+          },
+        ),
+      );
+      final c = OrderSummary.fromJson(
+        _baseOrderSummaryJson(
+          overrides: {
+            'has_external_warehouse_invoice': true,
+            'external_warehouse_invoices_count': 3,
+          },
+        ),
+      );
 
       expect(a, isNot(equals(b)));
       expect(a, isNot(equals(c)));
@@ -397,31 +490,36 @@ void main() {
         home: Scaffold(
           body: Directionality(
             textDirection: TextDirection.rtl,
-            child: OrderCard(
-              order: order,
-              onTap: () {},
-            ),
+            child: OrderCard(order: order, onTap: () {}),
           ),
         ),
       );
     }
 
-    testWidgets('renders uploaded state with checkmark and count', (tester) async {
-      final order = OrderSummary.fromJson(_baseOrderSummaryJson(overrides: {
-        'has_external_warehouse_invoice': true,
-        'external_warehouse_invoices_count': 2,
-      }));
+    testWidgets('renders uploaded state with checkmark and count', (
+      tester,
+    ) async {
+      final order = OrderSummary.fromJson(
+        _baseOrderSummaryJson(
+          overrides: {
+            'has_external_warehouse_invoice': true,
+            'external_warehouse_invoices_count': 2,
+          },
+        ),
+      );
 
       await tester.pumpWidget(buildCard(order));
 
       // Label and count are visible
       expect(find.textContaining('فاتورة المخزن'), findsOneWidget);
       expect(
-        find.byWidgetPredicate((w) =>
-            w is Text &&
-            w.textSpan != null &&
-            w.textSpan!.toPlainText().contains('فاتورة المخزن') &&
-            w.textSpan!.toPlainText().contains('2')),
+        find.byWidgetPredicate(
+          (w) =>
+              w is Text &&
+              w.textSpan != null &&
+              w.textSpan!.toPlainText().contains('فاتورة المخزن') &&
+              w.textSpan!.toPlainText().contains('2'),
+        ),
         findsOneWidget,
       );
 
@@ -429,31 +527,45 @@ void main() {
       expect(find.byIcon(Icons.check_circle_rounded), findsOneWidget);
     });
 
-    testWidgets('renders count 1 with checkmark when 1 invoice exists', (tester) async {
-      final order = OrderSummary.fromJson(_baseOrderSummaryJson(overrides: {
-        'has_external_warehouse_invoice': true,
-        'external_warehouse_invoices_count': 1,
-      }));
+    testWidgets('renders count 1 with checkmark when 1 invoice exists', (
+      tester,
+    ) async {
+      final order = OrderSummary.fromJson(
+        _baseOrderSummaryJson(
+          overrides: {
+            'has_external_warehouse_invoice': true,
+            'external_warehouse_invoices_count': 1,
+          },
+        ),
+      );
 
       await tester.pumpWidget(buildCard(order));
 
       expect(find.textContaining('فاتورة المخزن'), findsOneWidget);
       expect(
-        find.byWidgetPredicate((w) =>
-            w is Text &&
-            w.textSpan != null &&
-            w.textSpan!.toPlainText().contains('فاتورة المخزن') &&
-            w.textSpan!.toPlainText().contains('1')),
+        find.byWidgetPredicate(
+          (w) =>
+              w is Text &&
+              w.textSpan != null &&
+              w.textSpan!.toPlainText().contains('فاتورة المخزن') &&
+              w.textSpan!.toPlainText().contains('1'),
+        ),
         findsOneWidget,
       );
       expect(find.byIcon(Icons.check_circle_rounded), findsOneWidget);
     });
 
-    testWidgets('renders not-uploaded state with cancel icon and count 0', (tester) async {
-      final order = OrderSummary.fromJson(_baseOrderSummaryJson(overrides: {
-        'has_external_warehouse_invoice': false,
-        'external_warehouse_invoices_count': 0,
-      }));
+    testWidgets('renders not-uploaded state with cancel icon and count 0', (
+      tester,
+    ) async {
+      final order = OrderSummary.fromJson(
+        _baseOrderSummaryJson(
+          overrides: {
+            'has_external_warehouse_invoice': false,
+            'external_warehouse_invoices_count': 0,
+          },
+        ),
+      );
 
       await tester.pumpWidget(buildCard(order));
 
@@ -462,5 +574,52 @@ void main() {
       expect(find.byIcon(Icons.cancel_rounded), findsNWidgets(3));
       expect(find.byIcon(Icons.check_circle_rounded), findsNothing);
     });
+  });
+
+  // ── 11. ExternalWarehouseInvoicesSection: warehouse_invoice_url UI ───────
+  group('ExternalWarehouseInvoicesSection – warehouse_invoice_url UI', () {
+    Widget buildSection(OrderDetails order) {
+      return MaterialApp(
+        home: Scaffold(
+          body: Directionality(
+            textDirection: TextDirection.rtl,
+            child: ExternalWarehouseInvoicesSection(order: order),
+          ),
+        ),
+      );
+    }
+
+    testWidgets('renders PDF button when warehouse_invoice_url is present', (
+      tester,
+    ) async {
+      final order = OrderDetails.fromJson(
+        _baseOrderJson(
+          overrides: {
+            'warehouse_invoice_url': 'https://omni-link.net/storage/1698/invoice-ORD-h9kTMcuiMT-rjb-wns.pdf',
+          },
+        ),
+      );
+
+      await tester.pumpWidget(buildSection(order));
+
+      expect(find.text(AppStrings.viewWarehouseInvoicePdf), findsOneWidget);
+      expect(find.byIcon(Icons.picture_as_pdf_outlined), findsOneWidget);
+      expect(find.text('1 ملف'), findsOneWidget);
+    });
+
+    testWidgets(
+      'renders empty state message when both invoices and warehouse_invoice_url are absent',
+      (tester) async {
+        final order = OrderDetails.fromJson(_baseOrderJson());
+
+        await tester.pumpWidget(buildSection(order));
+
+        expect(
+          find.text(AppStrings.noExternalWarehouseInvoice),
+          findsOneWidget,
+        );
+        expect(find.byIcon(Icons.picture_as_pdf_outlined), findsNothing);
+      },
+    );
   });
 }

@@ -303,6 +303,11 @@ class _HomeOrdersScreenState extends State<HomeOrdersScreen>
                   final order = tabData.orders[index];
                   return OrderCard(
                     order: order,
+                    onStatusUpdated: () {
+                      if (mounted) {
+                        context.read<OrdersCubit>().refreshCurrentTab();
+                      }
+                    },
                     onTap: () async {
                       final navigator = Navigator.of(context);
                       final cubit = context.read<OrdersCubit>();

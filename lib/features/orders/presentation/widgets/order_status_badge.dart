@@ -3,13 +3,25 @@ import '../../models/order_status.dart';
 
 class OrderStatusBadge extends StatelessWidget {
   final OrderStatus status;
+  final String? rawStatus;
   final bool compact;
 
   const OrderStatusBadge({
     super.key,
     required this.status,
+    this.rawStatus,
     this.compact = false,
   });
+
+  String get _displayLabel {
+    final raw = rawStatus?.trim();
+    if (raw != null && raw.isNotEmpty) {
+      if (status == OrderStatus.cancelled || status == OrderStatus.unknown) {
+        return raw;
+      }
+    }
+    return status.localizedLabel;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +48,7 @@ class OrderStatusBadge extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           Text(
-            status.localizedLabel,
+            _displayLabel,
             style: TextStyle(
               color: status.color,
               fontSize: compact ? 12 : 13,

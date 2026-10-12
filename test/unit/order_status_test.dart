@@ -77,6 +77,10 @@ void main() {
       expect(OrderStatus.fromString('تم التوصيل'), OrderStatus.delivered);
       expect(OrderStatus.fromString('معلق'), OrderStatus.pending);
       expect(OrderStatus.fromString('ملغي'), OrderStatus.cancelled);
+      expect(OrderStatus.fromString('إلغيت'), OrderStatus.cancelled);
+      expect(OrderStatus.fromString('ألغيت'), OrderStatus.cancelled);
+      expect(OrderStatus.fromString('الغيت'), OrderStatus.cancelled);
+      expect(OrderStatus.fromString('canceled'), OrderStatus.cancelled);
     });
 
     test('OrderStatus.fromString gracefully handles unknown or null values without crashing', () {

@@ -35,6 +35,18 @@ abstract class OrdersRemoteDataSource {
     void Function(int sent, int total)? onSendProgress,
     String lang = ApiEndpoints.defaultLanguage,
   });
+
+  /// Update an order's internal status.
+  /// Sends PUT …/orders/{id}/status with body {"status": statusValue}.
+  /// For cancelled status, also include reason and restore_stock.
+  /// Returns the refreshed [OrderDetails] fetched after the update.
+  Future<OrderDetails> updateOrderStatus({
+    required int orderId,
+    required String status,
+    String? reason,
+    bool? restoreStock,
+    String lang = ApiEndpoints.defaultLanguage,
+  });
 }
 
 class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
@@ -277,5 +289,37 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
       return uploadResponse;
     }
     throw ServerException(message: 'تعذر رفع صور بوليصة الشحن');
+  }
+
+  @override
+  Future<OrderDetails> updateOrderStatus({
+    required int orderId,
+    required String status,
+    String? reason,
+    bool? restoreStock,
+    String lang = ApiEndpoints.defaultLanguage,
+  }) async {
+    final body = <String, dynamic>{'status': status};
+    if (reason != null) body['reason'] = reason;
+    if (restoreStock != null) body['restore_stock'] = restoreStock;
+
+    final response = await _dioClient.request(
+      (dio) => dio.put(
+        ApiEndpoints.updateOrderStatus(lang, orderId),
+        data: body,
+      ),
+    );
+
+    // The PATCH response may or may not contain updated order data.
+    // Regardless, we re-fetch the full order to guarantee a fresh state.
+    if (response.data is Map<String, dynamic>) {
+      final map = response.data as Map<String, dynamic>;
+      // Some endpoints return the updated resource directly inside `data`.
+      if (map['data'] is Map<String, dynamic>) {
+        return OrderDetails.fromJson(map['data'] as Map<String, dynamic>);
+      }
+    }
+    // Fallback: re-fetch order details
+    return getOrderDetails(orderId: orderId, lang: lang);
   }
 }

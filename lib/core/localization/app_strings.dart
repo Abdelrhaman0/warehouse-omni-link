@@ -14,7 +14,8 @@ class AppStrings {
   static const String loggingIn = 'جارٍ تسجيل الدخول...';
   static const String logout = 'تسجيل الخروج';
   static const String logoutConfirmTitle = 'تأكيد تسجيل الخروج';
-  static const String logoutConfirmMessage = 'هل أنت متأكد من رغبتك في تسجيل الخروج؟';
+  static const String logoutConfirmMessage =
+      'هل أنت متأكد من رغبتك في تسجيل الخروج؟';
   static const String loggingOut = 'جارٍ تسجيل الخروج...';
   static const String cancel = 'إلغاء';
   static const String confirm = 'تأكيد';
@@ -35,6 +36,9 @@ class AppStrings {
   static const String customerPhone = 'الهاتف';
   static const String customerWhatsApp = 'واتساب';
   static const String customerAddress = 'العنوان';
+  static const String orderTotal = 'إجمالي الطلب';
+  static const String remainingAmount = 'المبلغ المتبقي';
+  static const String remainingType = 'نوع المتبقي';
   static const String itemsCount = 'عدد المنتجات';
   static const String orderStatus = 'حالة الطلب';
   static const String createdAt = 'تاريخ الإنشاء';
@@ -64,8 +68,10 @@ class AppStrings {
   static const String existingPhotos = 'الصور المرفوعة مسبقاً';
   static const String noPhotosYet = 'لا توجد صور مرفوعة حتى الآن';
   static const String noSelectedPhotos = 'لم يتم تحديد صور بعد';
-  static const String duplicateImagesFound = 'تم استبعاد الصور المكررة تلقائياً';
-  static const String minShipmentPhotosHint = 'يجب أن يكون إجمالي صور الشحنة 5 صور على الأقل قبل الرفع.';
+  static const String duplicateImagesFound =
+      'تم استبعاد الصور المكررة تلقائياً';
+  static const String minShipmentPhotosHint =
+      'يجب أن يكون إجمالي صور الشحنة 5 صور على الأقل قبل الرفع.';
   static String minShipmentPhotosRequirement(int remaining) =>
       'متبقي $remaining صور على الأقل لإتمام الرفع (الحد الأدنى 5 صور).';
   static String photosCounter(int current, int min) =>
@@ -90,7 +96,7 @@ class AppStrings {
   static const String statusProcessing = 'قيد التجهيز';
   static const String statusShipped = 'تم الشحن';
   static const String statusDelivered = 'تم التسليم';
-  static const String statusCancelled = 'ملغي';
+  static const String statusCancelled = 'إلغيت';
   static const String statusUnknown = 'غير معروف';
 
   // Empty & Error states
@@ -102,21 +108,28 @@ class AppStrings {
   static const String noMoreOrders = 'تم تحميل جميع الطلبات';
 
   // User-friendly error messages (Never exposing raw exceptions)
-  static const String errorGeneric = 'حدث خطأ غير متوقع، يرجى المحاولة مرة أخرى.';
-  static const String errorNetwork = 'تعذر الاتصال بالخادم، يرجى التحقق من اتصال الإنترنت.';
-  static const String errorTimeout = 'انتهت مهلة الاتصال بالخادم، يرجى المحاولة لاحقاً.';
-  static const String errorUnauthorized = 'انتهت جلسة العمل، يرجى إعادة تسجيل الدخول.';
+  static const String errorGeneric =
+      'حدث خطأ غير متوقع، يرجى المحاولة مرة أخرى.';
+  static const String errorNetwork =
+      'تعذر الاتصال بالخادم، يرجى التحقق من اتصال الإنترنت.';
+  static const String errorTimeout =
+      'انتهت مهلة الاتصال بالخادم، يرجى المحاولة لاحقاً.';
+  static const String errorUnauthorized =
+      'انتهت جلسة العمل، يرجى إعادة تسجيل الدخول.';
   static const String errorForbidden = 'ليس لديك الصلاحية للقيام بهذا الإجراء.';
   static const String errorNotFound = 'العنصر المطلوب غير موجود.';
   static const String errorServer = 'حدث خطأ في الخادم، يرجى المحاولة لاحقاً.';
   static const String errorOrdersLoad = 'حدث خطأ أثناء تحميل الطلبات.';
-  static const String errorOrderDetailsLoad = 'حدث خطأ أثناء تحميل تفاصيل الطلب.';
-  static const String errorShipmentUpload = 'تعذر رفع صور الشحنة، يرجى المحاولة مرة أخرى.';
+  static const String errorOrderDetailsLoad =
+      'حدث خطأ أثناء تحميل تفاصيل الطلب.';
+  static const String errorShipmentUpload =
+      'تعذر رفع صور الشحنة، يرجى المحاولة مرة أخرى.';
   static const String errorWaybillUpload = 'حدث خطأ أثناء رفع بوليصة الشحن.';
   static const String errorProfileLoad = 'تعذر تحميل بيانات الملف الشخصي.';
 
   // Shipping Details
   static const String sectionShippingDetails = 'تفاصيل الشحن';
+  static const String shippingCompany = 'شركة الشحن';
   static const String waybillNumber = 'رقم البوليصة';
   static const String trackingUrl = 'رابط التتبع';
   static const String shippingLabelUrl = 'ملصق الشحن';
@@ -129,11 +142,37 @@ class AppStrings {
 
   // External Warehouse Invoice
   static const String sectionExternalWarehouseInvoice = 'فاتورة المخزن';
-  static const String noExternalWarehouseInvoice = 'لا توجد فواتير مخزن مرفقة لهذا الطلب';
+  static const String noExternalWarehouseInvoice =
+      'لا توجد فواتير مخزن مرفقة لهذا الطلب';
+  static const String viewWarehouseInvoicePdf = 'عرض فاتورة المخزن (PDF)';
 
   // Session Expiration
   static const String sessionExpiredTitle = 'انتهت الجلسة';
   static const String sessionExpiredMessage =
       'انتهت صلاحية جلسة تسجيل الدخول الخاصة بك.\nيرجى تسجيل الدخول مرة أخرى للمتابعة.';
   static const String sessionExpiredButton = 'تسجيل الدخول';
+
+  // Order Status Update
+  static const String updateStatusButton = 'تحديث الحالة';
+  static const String updateStatusSheetTitle = 'تحديث حالة الطلب';
+  static const String updateStatusSheetSubtitle =
+      'اختر الحالة الجديدة للطلب';
+  static const String statusUpdateSuccess = 'تم تحديث حالة الطلب بنجاح';
+  static const String errorStatusUpdate =
+      'تعذر تحديث حالة الطلب، يرجى المحاولة مرة أخرى.';
+  static const String updatingStatus = 'جارٍ تحديث الحالة...';
+  static const String currentStatus = 'الحالة الحالية';
+  static const String selectNewStatus = 'اختر حالة جديدة';
+
+  // Cancellation flow
+  static const String cancellationSheetTitle = 'تفاصيل الإلغاء';
+  static const String cancellationReason = 'سبب الإلغاء';
+  static const String cancellationReasonHint = 'أدخل سبب الإلغاء...';
+  static const String cancellationReasonRequired = 'يرجى إدخال سبب الإلغاء';
+  static const String restoreStock = 'إرجاع المنتجات للمخزن';
+  static const String restoreStockHint =
+      'هل تريد إعادة هذه المنتجات إلى المخزن؟';
+  static const String restoreStockYes = 'نعم، أعد للمخزن';
+  static const String restoreStockNo = 'لا، لا تعد';
+  static const String confirmCancellation = 'تأكيد الإلغاء';
 }

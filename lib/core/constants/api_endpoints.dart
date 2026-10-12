@@ -34,4 +34,6 @@ class ApiEndpoints {
       '${localizedBase(lang)}/admin/warehouse/orders/$id/shipment-photos';
   static String waybillPhotos(String lang, dynamic id) =>
       '${localizedBase(lang)}/admin/warehouse/orders/$id/waybill-photos';
+  static String updateOrderStatus(String lang, dynamic id) =>
+      '${localizedBase(lang)}/admin/warehouse/orders/$id/status';
 }
