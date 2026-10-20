@@ -4,6 +4,7 @@ import 'app/app.dart';
 import 'core/network/dio_client.dart';
 import 'core/network/authenticated_cache_manager.dart';
 import 'core/storage/media_hash_storage.dart';
+import 'core/storage/pending_photos_storage.dart';
 import 'core/storage/secure_storage_service.dart';
 import 'features/auth/data/auth_remote_data_source.dart';
 import 'features/auth/data/auth_repository.dart';
@@ -17,6 +18,7 @@ void main() async {
   final sharedPreferences = await SharedPreferences.getInstance();
   final secureStorage = SecureStorageService();
   final mediaHashStorage = MediaHashStorage(sharedPreferences);
+  final pendingPhotosStorage = PendingPhotosStorage(sharedPreferences);
 
   // Network client with token injection & 401 unauthorized handling
   final dioClient = DioClient(
@@ -47,6 +49,7 @@ void main() async {
     OmniLinkWarehouseApp(
       authRepository: authRepository,
       ordersRepository: ordersRepository,
+      pendingPhotosStorage: pendingPhotosStorage,
     ),
   );
 }

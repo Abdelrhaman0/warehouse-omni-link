@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/localization/app_strings.dart';
+import '../../../../core/storage/pending_photos_storage.dart';
 import '../../data/orders_repository.dart';
 import '../../models/order_details.dart';
 import '../cubits/order_details_cubit.dart';
@@ -293,18 +294,36 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                 return MultiBlocProvider(
                   providers: [
                     BlocProvider(
-                      create: (context) => ShipmentPhotosCubit(
-                        ordersRepository: context.read<OrdersRepository>(),
-                        orderId: order.id,
-                        existingPhotosCount: order.shipmentPhotos.length,
-                      ),
+                      create: (context) {
+                        PendingPhotosStorage? storage;
+                        try {
+                          storage = context.read<PendingPhotosStorage>();
+                        } catch (_) {
+                          storage = null;
+                        }
+                        return ShipmentPhotosCubit(
+                          ordersRepository: context.read<OrdersRepository>(),
+                          orderId: order.id,
+                          existingPhotosCount: order.shipmentPhotos.length,
+                          pendingPhotosStorage: storage,
+                        );
+                      },
                     ),
                     BlocProvider(
-                      create: (context) => WaybillPhotosCubit(
-                        ordersRepository: context.read<OrdersRepository>(),
-                        orderId: order.id,
-                        existingPhotosCount: order.waybillPhotos.length,
-                      ),
+                      create: (context) {
+                        PendingPhotosStorage? storage;
+                        try {
+                          storage = context.read<PendingPhotosStorage>();
+                        } catch (_) {
+                          storage = null;
+                        }
+                        return WaybillPhotosCubit(
+                          ordersRepository: context.read<OrdersRepository>(),
+                          orderId: order.id,
+                          existingPhotosCount: order.waybillPhotos.length,
+                          pendingPhotosStorage: storage,
+                        );
+                      },
                     ),
                   ],
                   child: Stack(

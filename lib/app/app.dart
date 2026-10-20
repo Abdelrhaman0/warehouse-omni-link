@@ -7,6 +7,7 @@ import '../features/auth/presentation/cubit/auth_cubit.dart';
 import '../features/auth/presentation/cubit/auth_state.dart';
 import '../features/auth/presentation/widgets/session_expired_dialog.dart';
 import '../features/orders/data/orders_repository.dart';
+import '../core/storage/pending_photos_storage.dart';
 import '../features/orders/presentation/cubits/orders_cubit.dart';
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
@@ -14,11 +15,13 @@ import 'theme/app_theme.dart';
 class OmniLinkWarehouseApp extends StatelessWidget {
   final AuthRepository authRepository;
   final OrdersRepository ordersRepository;
+  final PendingPhotosStorage? pendingPhotosStorage;
 
   const OmniLinkWarehouseApp({
     super.key,
     required this.authRepository,
     required this.ordersRepository,
+    this.pendingPhotosStorage,
   });
 
   @override
@@ -27,6 +30,8 @@ class OmniLinkWarehouseApp extends StatelessWidget {
       providers: [
         RepositoryProvider<AuthRepository>.value(value: authRepository),
         RepositoryProvider<OrdersRepository>.value(value: ordersRepository),
+        if (pendingPhotosStorage != null)
+          RepositoryProvider<PendingPhotosStorage>.value(value: pendingPhotosStorage!),
       ],
       child: MultiBlocProvider(
         providers: [

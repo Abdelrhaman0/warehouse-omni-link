@@ -23,7 +23,9 @@ class WaybillPhotosSection extends StatelessWidget {
     return BlocConsumer<WaybillPhotosCubit, WaybillPhotosState>(
       listener: (context, state) {
         if (state is WaybillPhotosSuccess) {
-          context.read<OrderDetailsCubit>().updateOrder(state.refreshedOrder);
+          try {
+            context.read<OrderDetailsCubit>().updateOrder(state.refreshedOrder);
+          } catch (_) {}
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(AppStrings.uploadSuccess),
@@ -226,20 +228,43 @@ class WaybillPhotosSection extends StatelessWidget {
       child: Row(
         children: [
           // Info Text
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  AppStrings.waybillPhotoAdded,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.redesignMainText,
-                  ),
+                Row(
+                  children: [
+                    const Text(
+                      AppStrings.waybillPhotoAdded,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.redesignMainText,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: const BoxDecoration(
+                        color: AppColors.redesignBadgeBlueBg,
+                        borderRadius: BorderRadius.all(Radius.circular(10)),
+                      ),
+                      child: const Text(
+                        AppStrings.pendingUploadBadge,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.redesignPrimaryBlue,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(height: 4),
-                Text(
+                const SizedBox(height: 4),
+                const Text(
                   AppStrings.waybillClarityHint,
                   style: TextStyle(
                     fontSize: 12,

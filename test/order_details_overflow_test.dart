@@ -21,7 +21,7 @@ class _FakeOrdersRepo implements OrdersRepository {
       rawStatus: 'مؤكد',
       customerName: 'أحمد الراشد',
       phone: '+966 50 218 6042',
-      address: ' شبين الكوم  شارع طلعت حرب ', ',
+      address: ' شبين الكوم  شارع طلعت حرب ',
       canUploadPhotos: true,
       hasShipmentPhotos: false,
       hasWaybillPhotos: false,

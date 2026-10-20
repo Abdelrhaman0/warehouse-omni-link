@@ -97,6 +97,32 @@ class AppStrings {
   static const String deletePhotoSemantics = 'حذف الصورة';
   static const String deleteWaybillSemantics = 'حذف صورة البوليصة';
 
+  // Pending Photo Uploads & Persistence
+  static const String pendingUploadBadge = 'قيد الانتظار';
+  static const String savedLocally = 'محفوظة محلياً';
+  static const String photosWaitingForWaybill =
+      'تم حفظ صور الشحنة محلياً. لإتاحة الرفع، أضف صورة بوليصة الشحن.';
+  static const String waybillWaitingForShipment =
+      'تم حفظ صورة البوليصة محلياً. لإتاحة الرفع، أكمل صور الشحنة المطلوبة.';
+  static const String photosSavedLocallyNotice =
+      'الصور محفوظة محلياً على الجهاز، ولن ترفع للخادم إلا بعد اكتمال صور الشحنة والبوليصة.';
+  static const String uploadFailureMessage =
+      'فشل رفع الصور، يرجى إعادة المحاولة.';
+  static const String addWaybillToEnableUpload =
+      'لإتاحة الرفع، أضف صورة بوليصة الشحن.';
+  static const String noNewPhotosToUpload = 'لا توجد صور جديدة للرفع.';
+  static const String addPhotoTile = 'إضافة صورة';
+  static const String badgeCompleted = 'مكتمل';
+  static const String badgeRequired = 'مطلوب';
+  static const String badgeAdded = 'مضافة';
+  static const String uploadedWaybillTitle = 'بوليصة شحن مرفوعة';
+  static const String uploadedWaybillSubtitle =
+      'اضغط على الصورة لمعاينتها بالحجم الكامل.';
+  static const String shipmentPhotosSavedLocally =
+      'تم حفظ صور الشحنة محلياً على الجهاز.';
+  static const String waybillPhotoSavedLocally =
+      'تم حفظ صورة البوليصة محلياً على الجهاز.';
+
   // Read-only info
   static const String completedOrderReadOnly =
       'هذا الطلب مكتمل (تم الشحن أو التسليم)، ولا يمكن إضافة أو تعديل الصور.';

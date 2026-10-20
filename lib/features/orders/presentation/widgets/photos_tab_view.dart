@@ -282,13 +282,24 @@ class PhotosTabView extends StatelessWidget {
     required ShipmentPhotosCubit shipmentCubit,
     required WaybillPhotosCubit waybillCubit,
   }) async {
+    final bool isShipmentUploading =
+        shipmentCubit.state is ShipmentPhotosUploading;
+    final bool isWaybillUploading =
+        waybillCubit.state is WaybillPhotosUploading;
+    if (isShipmentUploading || isWaybillUploading) return;
+
     final bool hasShipment =
         shipmentCubit.state.selectedImages.isNotEmpty;
     final bool hasWaybill =
         waybillCubit.state.selectedImages.isNotEmpty;
 
+    if (!hasShipment && !hasWaybill) return;
+
     if (hasShipment) {
       await shipmentCubit.uploadPhotos();
+      if (shipmentCubit.state is ShipmentPhotosFailure) {
+        return;
+      }
     }
     if (hasWaybill) {
       await waybillCubit.uploadPhotos();

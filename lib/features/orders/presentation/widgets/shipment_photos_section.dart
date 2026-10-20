@@ -24,7 +24,9 @@ class ShipmentPhotosSection extends StatelessWidget {
     return BlocConsumer<ShipmentPhotosCubit, ShipmentPhotosState>(
       listener: (context, state) {
         if (state is ShipmentPhotosSuccess) {
-          context.read<OrderDetailsCubit>().updateOrder(state.refreshedOrder);
+          try {
+            context.read<OrderDetailsCubit>().updateOrder(state.refreshedOrder);
+          } catch (_) {}
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(AppStrings.uploadSuccess),
@@ -465,6 +467,42 @@ class ShipmentPhotosSection extends StatelessWidget {
               ),
             ),
           ),
+        Positioned(
+          bottom: 4,
+          left: 4,
+          right: 4,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.65),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.schedule_rounded,
+                  size: 10,
+                  color: Colors.white,
+                ),
+                SizedBox(width: 3),
+                Flexible(
+                  child: Text(
+                    AppStrings.pendingUploadBadge,
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }

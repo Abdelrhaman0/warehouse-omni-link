@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/localization/app_strings.dart';
+import '../../../../core/storage/pending_photos_storage.dart';
 import '../../../../core/utils/sha256_util.dart';
 import '../../data/orders_repository.dart';
 import 'shipment_photos_state.dart';
@@ -11,14 +12,21 @@ class ShipmentPhotosCubit extends Cubit<ShipmentPhotosState> {
   final OrdersRepository ordersRepository;
   final ImagePicker _imagePicker;
   final int orderId;
+  final PendingPhotosStorage? pendingPhotosStorage;
 
   ShipmentPhotosCubit({
     required this.ordersRepository,
     required this.orderId,
     required int existingPhotosCount,
+    this.pendingPhotosStorage,
     ImagePicker? imagePicker,
+    bool autoLoad = true,
   })  : _imagePicker = imagePicker ?? ImagePicker(),
-        super(ShipmentPhotosIdle(existingCount: existingPhotosCount));
+        super(ShipmentPhotosIdle(existingCount: existingPhotosCount)) {
+    if (autoLoad && pendingPhotosStorage != null) {
+      loadPendingPhotos();
+    }
+  }
 
   /// Update existing photo count when order is refreshed or changed
   void updateExistingCount(int count) {
@@ -26,6 +34,43 @@ class ShipmentPhotosCubit extends Cubit<ShipmentPhotosState> {
       selectedImages: state.selectedImages,
       existingCount: count,
     ));
+  }
+
+  /// Load persisted pending photos from local storage for this order
+  Future<void> loadPendingPhotos() async {
+    if (pendingPhotosStorage == null) return;
+    try {
+      final persisted = await pendingPhotosStorage!.loadPendingPhotos(
+        orderId: orderId,
+        category: 'shipment',
+      );
+      if (persisted.isEmpty) return;
+
+      final uploadedHashes = ordersRepository.getUploadedHashes(orderId);
+      final notYetUploaded = <HashedImageItem>[];
+
+      for (final item in persisted) {
+        if (uploadedHashes.contains(item.hash)) {
+          // Already uploaded to server previously, clean up from pending
+          await pendingPhotosStorage!.removePhoto(
+            orderId: orderId,
+            category: 'shipment',
+            hash: item.hash,
+          );
+        } else {
+          notYetUploaded.add(item);
+        }
+      }
+
+      if (notYetUploaded.isNotEmpty && !isClosed) {
+        emit(ShipmentPhotosIdle(
+          selectedImages: notYetUploaded,
+          existingCount: state.existingCount,
+        ));
+      }
+    } catch (_) {
+      // Gracefully ignore local read errors
+    }
   }
 
   /// Add images directly from raw bytes (useful for camera, gallery, or tests)
@@ -44,8 +89,25 @@ class ShipmentPhotosCubit extends Cubit<ShipmentPhotosState> {
       persistedHashes: persistedHashes,
     );
 
+    final acceptedList = <HashedImageItem>[];
+    for (final item in filterResult.accepted) {
+      if (pendingPhotosStorage != null) {
+        final savedItem = await pendingPhotosStorage!.saveImageFile(
+          orderId: orderId,
+          category: 'shipment',
+          name: item.name,
+          bytes: item.bytes,
+          hash: item.hash,
+          originalPath: item.path,
+        );
+        acceptedList.add(savedItem);
+      } else {
+        acceptedList.add(item);
+      }
+    }
+
     final mergedList = List<HashedImageItem>.from(state.selectedImages)
-      ..addAll(filterResult.accepted);
+      ..addAll(acceptedList);
 
     String? notification;
     if (filterResult.hasDuplicates) {
@@ -106,9 +168,18 @@ class ShipmentPhotosCubit extends Cubit<ShipmentPhotosState> {
   }
 
   /// Remove single image from pending selection
-  void removeImage(HashedImageItem item) {
+  Future<void> removeImage(HashedImageItem item) async {
     final updated = List<HashedImageItem>.from(state.selectedImages)
       ..removeWhere((img) => img.hash == item.hash);
+
+    if (pendingPhotosStorage != null) {
+      await pendingPhotosStorage!.removePhoto(
+        orderId: orderId,
+        category: 'shipment',
+        hash: item.hash,
+      );
+    }
+
     emit(ShipmentPhotosIdle(
       selectedImages: updated,
       existingCount: state.existingCount,
@@ -116,7 +187,14 @@ class ShipmentPhotosCubit extends Cubit<ShipmentPhotosState> {
   }
 
   /// Clear all pending selected images
-  void clearSelection() {
+  Future<void> clearSelection() async {
+    if (pendingPhotosStorage != null) {
+      await pendingPhotosStorage!.clearCategoryPhotos(
+        orderId: orderId,
+        category: 'shipment',
+      );
+    }
+
     emit(ShipmentPhotosIdle(
       selectedImages: const [],
       existingCount: state.existingCount,
@@ -125,6 +203,9 @@ class ShipmentPhotosCubit extends Cubit<ShipmentPhotosState> {
 
   /// Upload selected shipment photos to backend
   Future<void> uploadPhotos() async {
+    // Prevent duplicate concurrent upload submissions
+    if (state is ShipmentPhotosUploading) return;
+
     // Validate business rule: minimum total photos >= 5
     if (!state.canUpload) {
       emit(ShipmentPhotosFailure(
@@ -161,7 +242,14 @@ class ShipmentPhotosCubit extends Cubit<ShipmentPhotosState> {
         },
       );
 
-      // Successful: clear temporary queue, update count, return refreshed order
+      // Successful: clear temporary queue and durable files only after server confirms success
+      if (pendingPhotosStorage != null) {
+        await pendingPhotosStorage!.clearCategoryPhotos(
+          orderId: orderId,
+          category: 'shipment',
+        );
+      }
+
       emit(ShipmentPhotosSuccess(
         refreshedOrder: refreshedOrder,
         existingCount: refreshedOrder.shipmentPhotos.length,
