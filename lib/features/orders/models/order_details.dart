@@ -141,9 +141,26 @@ class OrderDetails extends Equatable {
       phone: json['phone']?.toString(),
       whatsapp: json['whatsapp']?.toString(),
       address: json['address']?.toString(),
-      total: (json['total'] ?? json['total_price'])?.toString(),
-      remainingAmount: json['remaining_amount']?.toString(),
-      remainingType: json['remaining_type']?.toString(),
+      total: (json['total'] ??
+              json['total_price'] ??
+              (json['payment'] is Map ? json['payment']['total'] : null))
+          ?.toString(),
+      remainingAmount: (json['remaining_amount'] ??
+              (json['payment'] is Map
+                  ? json['payment']['remaining_amount']
+                  : null) ??
+              (json['shipping_details'] is Map
+                  ? json['shipping_details']['remaining_amount']
+                  : null))
+          ?.toString(),
+      remainingType: (json['remaining_type'] ??
+              (json['payment'] is Map
+                  ? json['payment']['remaining_type']
+                  : null) ??
+              (json['shipping_details'] is Map
+                  ? json['shipping_details']['remaining_type']
+                  : null))
+          ?.toString(),
       canUploadPhotos: json['can_upload_photos'] == true,
       hasShipmentPhotos:
           json['has_shipment_photos'] == true || shipmentPhotos.isNotEmpty,

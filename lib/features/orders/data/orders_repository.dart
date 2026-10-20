@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/error/failures.dart';
@@ -13,8 +14,15 @@ abstract class OrdersRepository {
     int page = 1,
     int perPage = AppConstants.defaultPerPage,
     String? tab,
+    String? status,
+    String? dataType,
   });
-  Future<PaginatedOrders> getCompletedOrders({int page = 1, int perPage = AppConstants.defaultPerPage});
+  Future<PaginatedOrders> getCompletedOrders({
+    int page = 1,
+    int perPage = AppConstants.defaultPerPage,
+    String? status,
+    String? dataType,
+  });
   Future<OrderDetails> getOrderDetails(int orderId);
 
   Future<OrderDetails> uploadShipmentPhotos({
@@ -53,12 +61,17 @@ class OrdersRepositoryImpl implements OrdersRepository {
     int page = 1,
     int perPage = AppConstants.defaultPerPage,
     String? tab,
+    String? status,
+    String? dataType,
   }) async {
+    final effectiveDataType = dataType ?? (page > 1 ? 'orders' : 'all');
     try {
       final result = await remoteDataSource.getOrders(
         tab: tab ?? 'pending',
+        status: status,
         page: page,
         perPage: perPage,
+        dataType: effectiveDataType,
       );
 
       // The backend is the source of truth for which orders belong to the
@@ -81,12 +94,17 @@ class OrdersRepositoryImpl implements OrdersRepository {
   Future<PaginatedOrders> getCompletedOrders({
     int page = 1,
     int perPage = AppConstants.defaultPerPage,
+    String? status,
+    String? dataType,
   }) async {
+    final effectiveDataType = dataType ?? (page > 1 ? 'orders' : 'all');
     try {
       final result = await remoteDataSource.getOrders(
         tab: 'completed',
+        status: status,
         page: page,
         perPage: perPage,
+        dataType: effectiveDataType,
       );
 
       // The backend is the source of truth for which orders belong to the

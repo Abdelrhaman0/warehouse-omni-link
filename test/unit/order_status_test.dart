@@ -1,30 +1,31 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:warehouse_store_keeper/features/orders/models/order_status.dart';
+import 'package:warehouse_store_keeper/features/orders/models/order_status_tab_mapper.dart';
+import 'package:warehouse_store_keeper/features/orders/models/orders_tab.dart';
 
 void main() {
   group('OrderStatus Model & Filtering Rules', () {
     // -------------------------------------------------------------------
-    // Open Orders: confirmed | processing
+    // Open Orders: confirmed | processing | shipped
     // -------------------------------------------------------------------
-    test('Open Orders statuses include ONLY confirmed and processing', () {
+    test('Open Orders statuses include confirmed, processing, and shipped', () {
       expect(OrderStatus.confirmed.isOpen, isTrue);
       expect(OrderStatus.processing.isOpen, isTrue);
+      expect(OrderStatus.shipped.isOpen, isTrue);
 
-      // shipped now belongs to Completed, not Open
-      expect(OrderStatus.shipped.isOpen, isFalse);
       expect(OrderStatus.delivered.isOpen, isFalse);
       expect(OrderStatus.pending.isOpen, isFalse);
       expect(OrderStatus.cancelled.isOpen, isFalse);
     });
 
     // -------------------------------------------------------------------
-    // Completed Orders: shipped | delivered
+    // Completed Orders: delivered only
     // -------------------------------------------------------------------
-    test('Completed Orders statuses include shipped and delivered', () {
-      expect(OrderStatus.shipped.isCompleted, isTrue);
+    test('Completed Orders statuses include delivered only', () {
       expect(OrderStatus.delivered.isCompleted, isTrue);
 
-      // confirmed and processing belong to Open, not Completed
+      // shipped now belongs to Open, not Completed
+      expect(OrderStatus.shipped.isCompleted, isFalse);
       expect(OrderStatus.confirmed.isCompleted, isFalse);
       expect(OrderStatus.processing.isCompleted, isFalse);
       expect(OrderStatus.pending.isCompleted, isFalse);
@@ -81,6 +82,10 @@ void main() {
       expect(OrderStatus.fromString('ألغيت'), OrderStatus.cancelled);
       expect(OrderStatus.fromString('الغيت'), OrderStatus.cancelled);
       expect(OrderStatus.fromString('canceled'), OrderStatus.cancelled);
+      expect(OrderStatus.fromString('refused_delivery'), OrderStatus.cancelled);
+      expect(OrderStatus.fromString('refused'), OrderStatus.cancelled);
+      expect(OrderStatus.fromString('رفض الاستلام'), OrderStatus.cancelled);
+      expect(OrderStatus.fromString('تم رفض الاستلام'), OrderStatus.cancelled);
     });
 
     test('OrderStatus.fromString gracefully handles unknown or null values without crashing', () {
@@ -92,30 +97,58 @@ void main() {
 
     // -------------------------------------------------------------------
     // State transition: processing → shipped
-    //   Order leaves Open, appears in Completed
+    //   Order remains in Open section (shipped = Open)
     // -------------------------------------------------------------------
-    test('processing → shipped: status leaves Open and enters Completed', () {
+    test('processing → shipped: status stays in Open Orders', () {
       // Before: order is processing (Open)
       expect(OrderStatus.processing.isOpen, isTrue);
       expect(OrderStatus.processing.isCompleted, isFalse);
 
-      // After: order becomes shipped (Completed)
-      expect(OrderStatus.shipped.isOpen, isFalse);
-      expect(OrderStatus.shipped.isCompleted, isTrue);
+      // After: order becomes shipped — still Open
+      expect(OrderStatus.shipped.isOpen, isTrue);
+      expect(OrderStatus.shipped.isCompleted, isFalse);
     });
 
     // -------------------------------------------------------------------
     // State transition: shipped → delivered
-    //   Order remains in Completed (status label updates)
+    //   Order moves from Open to Completed
     // -------------------------------------------------------------------
-    test('shipped → delivered: order remains in Completed section', () {
-      // Both shipped and delivered are Completed
-      expect(OrderStatus.shipped.isCompleted, isTrue);
-      expect(OrderStatus.delivered.isCompleted, isTrue);
+    test('shipped → delivered: order moves from Open to Completed section', () {
+      // shipped is Open
+      expect(OrderStatus.shipped.isOpen, isTrue);
+      expect(OrderStatus.shipped.isCompleted, isFalse);
 
-      // Neither is Open
-      expect(OrderStatus.shipped.isOpen, isFalse);
+      // delivered is Completed
+      expect(OrderStatus.delivered.isCompleted, isTrue);
       expect(OrderStatus.delivered.isOpen, isFalse);
+    });
+
+    // -------------------------------------------------------------------
+    // Centralized Status-to-Tab Mapping (Requirement 2 & Scenarios 1-3)
+    // -------------------------------------------------------------------
+    test('Centralized mapping: cancelled activates completed tab', () {
+      expect(OrderStatus.cancelled.targetTab, OrdersTab.completed);
+      expect(OrderStatusTabMapper.getTabForStatus(OrderStatus.cancelled), OrdersTab.completed);
+      expect(OrderStatusTabMapper.isStatusCompatibleWithTab(OrderStatus.cancelled, OrdersTab.completed), isTrue);
+      expect(OrderStatusTabMapper.isStatusCompatibleWithTab(OrderStatus.cancelled, OrdersTab.open), isFalse);
+    });
+
+    test('Centralized mapping: pending, confirmed, processing activate open tab', () {
+      expect(OrderStatus.pending.targetTab, OrdersTab.open);
+      expect(OrderStatus.confirmed.targetTab, OrdersTab.open);
+      expect(OrderStatus.processing.targetTab, OrdersTab.open);
+
+      expect(OrderStatusTabMapper.getTabForStatus(OrderStatus.pending), OrdersTab.open);
+      expect(OrderStatusTabMapper.getTabForStatus(OrderStatus.confirmed), OrdersTab.open);
+      expect(OrderStatusTabMapper.getTabForStatus(OrderStatus.processing), OrdersTab.open);
+    });
+
+    test('Centralized mapping: shipped activates open tab; delivered activates completed tab', () {
+      expect(OrderStatus.shipped.targetTab, OrdersTab.open);
+      expect(OrderStatus.delivered.targetTab, OrdersTab.completed);
+
+      expect(OrderStatusTabMapper.getTabForStatus(OrderStatus.shipped), OrdersTab.open);
+      expect(OrderStatusTabMapper.getTabForStatus(OrderStatus.delivered), OrdersTab.completed);
     });
   });
 }

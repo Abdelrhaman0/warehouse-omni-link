@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/constants/app_colors.dart';
@@ -14,8 +15,8 @@ import 'order_status_update_sheet.dart';
 /// An order card in the list that supports both navigating to details
 /// and updating the order status inline.
 ///
-/// It creates a scoped [OrderDetailsCubit] so status updates from the card
-/// reuse the exact same repository/cubit logic as [OrderDetailsScreen].
+/// It creates a scoped [OrderDetailsCubit] when [OrdersRepository] is in scope
+/// so status updates from the card reuse the exact same repository/cubit logic as [OrderDetailsScreen].
 class OrderCard extends StatelessWidget {
   final OrderSummary order;
   final VoidCallback onTap;
@@ -31,10 +32,26 @@ class OrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    OrdersRepository? repository;
+    try {
+      repository = RepositoryProvider.of<OrdersRepository>(context, listen: false);
+    } catch (_) {
+      repository = null;
+    }
+
+    if (repository == null) {
+      return _OrderCardContent(
+        order: order,
+        onTap: onTap,
+        onStatusUpdated: onStatusUpdated,
+        isUpdating: false,
+        canUpdateStatus: false,
+      );
+    }
+
     return BlocProvider<OrderDetailsCubit>(
-      // Scoped cubit — shares the same repository as everywhere else.
       create: (_) => OrderDetailsCubit(
-        ordersRepository: context.read<OrdersRepository>(),
+        ordersRepository: repository!,
       ),
       child: _OrderCardBody(
         order: order,
@@ -94,28 +111,64 @@ class _OrderCardBody extends StatelessWidget {
       child: BlocBuilder<OrderDetailsCubit, OrderDetailsState>(
         builder: (context, detailsState) {
           final isUpdating = detailsState is OrderDetailsStatusUpdating;
+          return _OrderCardContent(
+            order: order,
+            onTap: onTap,
+            onStatusUpdated: onStatusUpdated,
+            isUpdating: isUpdating,
+            canUpdateStatus: true,
+          );
+        },
+      ),
+    );
+  }
+}
 
-          return Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: const BorderSide(color: AppColors.cardBorder, width: 1.2),
-            ),
-            child: InkWell(
-              onTap: isUpdating ? null : onTap,
-              borderRadius: BorderRadius.circular(12),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Header: Order Number, Status Badge, Update button
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+// ─────────────────────────────────────────────────────────────────────────────
+// Content view: Renders the card UI according to Figma specifications
+// ─────────────────────────────────────────────────────────────────────────────
+class _OrderCardContent extends StatelessWidget {
+  final OrderSummary order;
+  final VoidCallback onTap;
+  final VoidCallback? onStatusUpdated;
+  final bool isUpdating;
+  final bool canUpdateStatus;
+
+  const _OrderCardContent({
+    required this.order,
+    required this.onTap,
+    this.onStatusUpdated,
+    required this.isUpdating,
+    required this.canUpdateStatus,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: const BorderSide(color: AppColors.cardBorder, width: 1.2),
+      ),
+      child: InkWell(
+        onTap: isUpdating ? null : onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header: Order Number + Copy Button, Status Badge, Update button
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Flexible(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Expanded(
+                            Flexible(
                               child: Text(
                                 order.orderNumber,
                                 maxLines: 1,
@@ -128,21 +181,53 @@ class _OrderCardBody extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            OrderStatusBadge(
-                              status: order.status,
-                              rawStatus: order.rawStatus,
-                              compact: true,
-                            ),
                             const SizedBox(width: 4),
-                            // Update status button
+                            InkWell(
+                              onTap: () {
+                                Clipboard.setData(
+                                  ClipboardData(text: order.orderNumber),
+                                );
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(AppStrings.copiedToClipboard),
+                                    duration: Duration(seconds: 1),
+                                  ),
+                                );
+                              },
+                              borderRadius: BorderRadius.circular(4),
+                              child: const Padding(
+                                padding: EdgeInsets.all(4),
+                                child: Icon(
+                                  Icons.copy_rounded,
+                                  size: 15,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          OrderStatusBadge(
+                            status: order.status,
+                            rawStatus: order.rawStatus,
+                            compact: true,
+                          ),
+                          if (canUpdateStatus) ...[
+                            const SizedBox(width: 4),
                             _UpdateStatusButton(
                               order: order,
                               isUpdating: isUpdating,
                             ),
                           ],
-                        ),
-                        const Divider(height: 20, color: AppColors.divider),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 20, color: AppColors.divider),
 
                         // Customer info
                         _buildCustomerRow(order.customerName),
@@ -197,9 +282,6 @@ class _OrderCardBody extends StatelessWidget {
               ),
             ),
           );
-        },
-      ),
-    );
   }
 
   Widget _buildCustomerRow(String name) {

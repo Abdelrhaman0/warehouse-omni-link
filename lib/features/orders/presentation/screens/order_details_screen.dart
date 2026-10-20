@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/constants/app_colors.dart';
@@ -9,34 +10,127 @@ import '../cubits/order_details_cubit.dart';
 import '../cubits/order_details_state.dart';
 import '../cubits/shipment_photos_cubit.dart';
 import '../cubits/waybill_photos_cubit.dart';
-import '../widgets/customer_info_card.dart';
-import '../widgets/shipping_details_section.dart';
-import '../widgets/order_status_badge.dart';
+import '../widgets/handover_tab_view.dart';
+import '../widgets/order_details_header.dart';
+import '../widgets/order_details_step_bar.dart';
 import '../widgets/order_status_update_sheet.dart';
-import '../widgets/product_item_card.dart';
-import '../widgets/shipment_photos_section.dart';
-import '../widgets/waybill_photos_section.dart';
-import '../widgets/external_warehouse_invoices_section.dart';
+import '../widgets/packing_tab_view.dart';
+import '../widgets/photos_tab_view.dart';
+import '../widgets/picking_tab_view.dart';
 
-class OrderDetailsScreen extends StatelessWidget {
+class OrderDetailsScreen extends StatefulWidget {
   final int orderId;
+  final int initialTab;
 
-  const OrderDetailsScreen({super.key, required this.orderId});
+  const OrderDetailsScreen({
+    super.key,
+    required this.orderId,
+    this.initialTab = 2,
+  });
+
+  @override
+  State<OrderDetailsScreen> createState() => _OrderDetailsScreenState();
+}
+
+class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
+  late int _selectedTab;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedTab = widget.initialTab;
+  }
+
+
+  void _showMoreActionsSheet(BuildContext context, OrderDetails order) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE2E8F0),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ListTile(
+                  leading: const Icon(
+                    Icons.swap_horiz_rounded,
+                    color: AppColors.primary,
+                  ),
+                  title: const Text(
+                    'تحديث حالة الطلب',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    showOrderStatusUpdateSheet(context, order);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.refresh_rounded,
+                    color: Color(0xFF2563EB),
+                  ),
+                  title: const Text(
+                    'تحديث البيانات',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    context.read<OrderDetailsCubit>().refreshOrderDetails();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.copy_rounded,
+                    color: Color(0xFF64748B),
+                  ),
+                  title: const Text(
+                    'نسخ رقم الطلب',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: Text(order.orderNumber),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    Clipboard.setData(ClipboardData(text: order.orderNumber));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('تم نسخ رقم الطلب إلى الحافظة'),
+                        behavior: SnackBarBehavior.floating,
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) =>
           OrderDetailsCubit(ordersRepository: context.read<OrdersRepository>())
-            ..loadOrderDetails(orderId),
+            ..loadOrderDetails(widget.orderId),
       child: BlocListener<OrderDetailsCubit, OrderDetailsState>(
         listener: (context, state) {
-          // Show success snackbar when status update completes
-          if (state is OrderDetailsLoaded) {
-            // We only show success if we were previously in StatusUpdating
-            // BlocListener fires on every build, but this is handled by checking
-            // previous state implicitly through listenWhen.
-          }
           if (state is OrderDetailsStatusUpdateFailure) {
             ScaffoldMessenger.of(context)
               ..hideCurrentSnackBar()
@@ -51,7 +145,6 @@ class OrderDetailsScreen extends StatelessWidget {
           }
         },
         listenWhen: (previous, current) {
-          // Show success snackbar when transitioning from updating → loaded
           if (previous is OrderDetailsStatusUpdating &&
               current is OrderDetailsLoaded) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -70,10 +163,45 @@ class OrderDetailsScreen extends StatelessWidget {
           return true;
         },
         child: Scaffold(
+          backgroundColor: const Color(0xFFF8FAFC),
           appBar: AppBar(
-            title: Text('${AppStrings.details} #$orderId'),
+            backgroundColor: Colors.white,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            leading: IconButton(
+              icon: const Icon(
+                Icons.arrow_back_ios_rounded,
+                size: 20,
+                color: Color(0xFF0F172A),
+              ),
+              tooltip: 'رجوع',
+              onPressed: () => Navigator.of(context).maybePop(),
+            ),
+            title: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const Text(
+                  'تفاصيل الطلب',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                //  const SizedBox(height: 2),
+                //  Text(
+                //    _getSubtitleForTab(_selectedTab),
+                //   style: const TextStyle(
+                //      fontSize: 12,
+                //      fontWeight: FontWeight.w500,
+                //      color: Color(0xFF64748B),
+                //    ),
+                // ),
+              ],
+            ),
+            centerTitle: true,
             actions: [
-              // Update Status button — only visible when order is loaded
               Builder(
                 builder: (ctx) {
                   final state = ctx.watch<OrderDetailsCubit>().state;
@@ -83,23 +211,17 @@ class OrderDetailsScreen extends StatelessWidget {
                     OrderDetailsStatusUpdateFailure(:final order) => order,
                     _ => null,
                   };
+
                   if (order == null) return const SizedBox.shrink();
+
                   return IconButton(
-                    icon: const Icon(Icons.swap_horiz_rounded),
-                    tooltip: AppStrings.updateStatusButton,
-                    onPressed: state is OrderDetailsStatusUpdating
-                        ? null // request in-flight
-                        : () => showOrderStatusUpdateSheet(ctx, order),
-                  );
-                },
-              ),
-              Builder(
-                builder: (ctx) {
-                  return IconButton(
-                    icon: const Icon(Icons.refresh),
-                    tooltip: 'تحديث',
-                    onPressed: () =>
-                        ctx.read<OrderDetailsCubit>().refreshOrderDetails(),
+                    icon: const Icon(
+                      Icons.more_horiz_rounded,
+                      size: 26,
+                      color: Color(0xFF1E3A8A),
+                    ),
+                    tooltip: 'خيارات إضافية',
+                    onPressed: () => _showMoreActionsSheet(ctx, order),
                   );
                 },
               ),
@@ -149,7 +271,7 @@ class OrderDetailsScreen extends StatelessWidget {
                         ElevatedButton.icon(
                           onPressed: () => context
                               .read<OrderDetailsCubit>()
-                              .loadOrderDetails(orderId),
+                              .loadOrderDetails(widget.orderId),
                           icon: const Icon(Icons.refresh),
                           label: const Text(AppStrings.retry),
                         ),
@@ -159,7 +281,6 @@ class OrderDetailsScreen extends StatelessWidget {
                 );
               }
 
-              // Resolve the order from the current state (handles updating + failure states)
               final OrderDetails? order = switch (state) {
                 OrderDetailsLoaded(:final order) => order,
                 OrderDetailsStatusUpdating(:final order) => order,
@@ -188,63 +309,60 @@ class OrderDetailsScreen extends StatelessWidget {
                   ],
                   child: Stack(
                     children: [
-                      RefreshIndicator(
-                        onRefresh: () =>
-                            context.read<OrderDetailsCubit>().refreshOrderDetails(),
-                        child: SingleChildScrollView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Order Header Card
-                              _buildOrderHeaderCard(order),
-                              const SizedBox(height: 16),
+                      Column(
+                        children: [
+                          // 0. Persistent order header
+                          OrderDetailsHeader(order: order),
 
-                              // Customer Information
-                              CustomerInfoCard(order: order),
-                              const SizedBox(height: 16),
-
-                              // Shipping Details (تفاصيل الشحن)
-                              if (order.shippingDetails != null) ...[
-                                ShippingDetailsSection(
-                                  shippingDetails: order.shippingDetails!,
-                                ),
-                                const SizedBox(height: 16),
-                              ],
-                              // External Warehouse Invoice (فاتورة المخزن)
-                              // Shown when the backend reports invoices or a warehouse_invoice_url.
-                              if (order.hasExternalWarehouseInvoice ||
-                                  (order.warehouseInvoiceUrl != null &&
-                                      order.warehouseInvoiceUrl!
-                                          .trim()
-                                          .isNotEmpty)) ...[
-                                ExternalWarehouseInvoicesSection(order: order),
-                                const SizedBox(height: 16),
-                              ],
-                              const SizedBox(height: 16),
-                              // Products
-                              _buildProductsSection(order),
-                              const SizedBox(height: 16),
-
-                              // Shipment / Product Photos
-                              ShipmentPhotosSection(order: order),
-                              const SizedBox(height: 16),
-
-                              // Waybill Photos
-                              WaybillPhotosSection(order: order),
-                              const SizedBox(height: 8),
-                            ],
+                          // 1. Step Navigation Bar
+                          OrderDetailsStepBar(
+                            currentStep: _selectedTab,
+                            onStepSelected: (index) {
+                              setState(() {
+                                _selectedTab = index;
+                              });
+                            },
                           ),
-                        ),
+
+                          // 2. Tab Contents
+                          Expanded(
+                            child: RefreshIndicator(
+                              onRefresh: () => context
+                                  .read<OrderDetailsCubit>()
+                                  .refreshOrderDetails(),
+                              child: IndexedStack(
+                                index: _selectedTab,
+                                children: [
+                                  // Tab 1: العميل — Customer info + items
+                                  PickingTabView(order: order),
+
+                                  // Tab 2: الشحن — Shipping + invoice
+                                  PackingTabView(order: order),
+
+                                  // Tab 3: الصور — Photos
+                                  PhotosTabView(order: order),
+
+                                  // Tab 4: الملخص — Summary + status button
+                                  HandoverTabView(
+                                    order: order,
+                                    onUpdateStatus: () {
+                                      showOrderStatusUpdateSheet(
+                                          context, order);
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
 
-                      // Overlay progress indicator during status update
+                      // Overlay during status update in-flight
                       if (isStatusUpdating)
                         Positioned.fill(
                           child: AbsorbPointer(
                             child: Container(
-                              color: Colors.black.withValues(alpha: 0.15),
+                              color: Colors.black.withValues(alpha: 0.2),
                               alignment: Alignment.center,
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
@@ -256,7 +374,8 @@ class OrderDetailsScreen extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(16),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.12),
+                                      color:
+                                          Colors.black.withValues(alpha: 0.12),
                                       blurRadius: 20,
                                     ),
                                   ],
@@ -288,141 +407,6 @@ class OrderDetailsScreen extends StatelessWidget {
               return const SizedBox.shrink();
             },
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOrderHeaderCard(OrderDetails order) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: AppColors.cardBorder, width: 1.2),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    order.orderNumber,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ),
-                OrderStatusBadge(
-                  status: order.status,
-                  rawStatus: order.rawStatus,
-                ),
-              ],
-            ),
-            const Divider(height: 20, color: AppColors.divider),
-            if (order.createdAt != null) ...[
-              _buildTimestampRow(AppStrings.createdAt, order.createdAt!),
-              const SizedBox(height: 6),
-            ],
-            if (order.confirmedAt != null) ...[
-              _buildTimestampRow(AppStrings.confirmedAt, order.confirmedAt!),
-              const SizedBox(height: 6),
-            ],
-            if (order.shippedAt != null) ...[
-              _buildTimestampRow(AppStrings.shippedAt, order.shippedAt!),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTimestampRow(String label, String value) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.only(top: 2),
-          child: Icon(Icons.schedule, size: 15, color: AppColors.textMuted),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          '$label: ',
-          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-            ),
-            softWrap: true,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildProductsSection(OrderDetails order) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: AppColors.cardBorder, width: 1.2),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(
-                  Icons.inventory_2_outlined,
-                  color: AppColors.primary,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '${AppStrings.sectionItems} (${order.items.length})',
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-            const Divider(height: 20, color: AppColors.divider),
-            if (order.items.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
-                child: Center(
-                  child: Text(
-                    'لا توجد منتجات مسجلة لهذا الطلب',
-                    style: TextStyle(color: AppColors.textMuted, fontSize: 13),
-                  ),
-                ),
-              )
-            else
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: order.items.length,
-                separatorBuilder: (context, index) =>
-                    const SizedBox(height: 10),
-                itemBuilder: (context, index) {
-                  return ProductItemCard(item: order.items[index]);
-                },
-              ),
-          ],
         ),
       ),
     );

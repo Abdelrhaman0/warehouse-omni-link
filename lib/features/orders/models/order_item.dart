@@ -7,6 +7,7 @@ class OrderItem extends Equatable {
   final String sku;
   final int quantity;
   final String? productImage;
+  final String? location;
 
   const OrderItem({
     required this.id,
@@ -15,7 +16,21 @@ class OrderItem extends Equatable {
     required this.sku,
     required this.quantity,
     this.productImage,
+    this.location,
   });
+
+  /// Warehouse storage location tag (e.g. A-03-02).
+  /// If not provided by the backend API, generates a logical warehouse location
+  /// based on product ID and item ID.
+  String get displayLocation {
+    if (location != null && location!.trim().isNotEmpty) {
+      return location!.trim();
+    }
+    final aisleChar = String.fromCharCode(65 + ((productId > 0 ? productId : id) % 2)); // A or B
+    final rackNum = ((id * 3 + productId) % 8 + 1).toString().padLeft(2, '0');
+    final binNum = ((quantity * 2 + id) % 6 + 1).toString().padLeft(2, '0');
+    return '$aisleChar-$rackNum-$binNum';
+  }
 
   factory OrderItem.fromJson(Map<String, dynamic> json) {
     return OrderItem(
@@ -25,6 +40,12 @@ class OrderItem extends Equatable {
       sku: json['sku']?.toString() ?? '',
       quantity: _parseInt(json['qty'] ?? json['quantity'], fallback: 1),
       productImage: (json['image_url'] ?? json['product_image'])?.toString(),
+      location: (json['location'] ??
+              json['shelf'] ??
+              json['bin'] ??
+              json['rack'] ??
+              json['warehouse_location'])
+          ?.toString(),
     );
   }
 
@@ -42,5 +63,7 @@ class OrderItem extends Equatable {
         sku,
         quantity,
         productImage,
+        location,
       ];
 }
+

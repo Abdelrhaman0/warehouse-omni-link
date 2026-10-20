@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/localization/app_strings.dart';
+import 'order_status_tab_mapper.dart';
+import 'orders_tab.dart';
 
 enum OrderStatus {
   pending('pending', AppStrings.statusPending),
@@ -54,23 +56,28 @@ enum OrderStatus {
         normalized.contains('لغي') ||
         normalized.contains('لغى') ||
         normalized.contains('لغا') ||
-        normalized.contains('cancel')) {
+        normalized.contains('cancel') ||
+        normalized.contains('refused') ||
+        normalized.contains('رفض')) {
       return OrderStatus.cancelled;
     }
 
     return OrderStatus.unknown;
   }
 
+  /// The corresponding tab for this status according to verified business rules.
+  OrdersTab get targetTab => OrderStatusTabMapper.getTabForStatus(this);
+
   /// Whether status belongs to the Open Orders section.
-  /// Open = confirmed | processing
+  /// Open = confirmed | processing | shipped
   bool get isOpen =>
       this == OrderStatus.confirmed ||
-      this == OrderStatus.processing;
+      this == OrderStatus.processing ||
+      this == OrderStatus.shipped;
 
   /// Whether status belongs to the Completed Orders section.
-  /// Completed = shipped | delivered
+  /// Completed = delivered
   bool get isCompleted =>
-      this == OrderStatus.shipped ||
       this == OrderStatus.delivered;
 
   /// Whether this order must be completely ignored/filtered out

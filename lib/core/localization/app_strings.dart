@@ -77,6 +77,26 @@ class AppStrings {
   static String photosCounter(int current, int min) =>
       '$current / $min صور كحد أدنى';
 
+  // Figma Redesign Strings
+  static const String photosTabHeading = 'صور الطلب';
+  static const String photosTabSubtitle = 'وثّق الشحنة والبوليصة، ثم ارفع الصور معًا.';
+  static const String shipmentPhotosInstruction =
+      'صوّر الشحنة من زوايا مختلفة، مع إظهار المنتجات وحالة التغليف بوضوح.';
+  static const String waybillPhotosInstruction =
+      'أظهر البوليصة كاملة، مع وضوح البيانات والباركود.';
+  static const String shipmentPhotosEmptyState =
+      'لا توجد صور بعد. ابدأ بتصوير الشحنة.';
+  static const String waybillPhotoAdded = 'صورة بوليصة مضافة';
+  static const String waybillClarityHint =
+      'تأكد من وضوح البيانات قبل الرفع.';
+  static const String captureWaybill = 'تصوير البوليصة';
+  static const String uploadPhotosReady =
+      'الصور جاهزة. راجعها ثم اضغط «رفع الصور».';
+  static const String uploadPhotosDisclaimer =
+      'لن تُرفع الصور إلا عند الضغط على «رفع الصور».';
+  static const String deletePhotoSemantics = 'حذف الصورة';
+  static const String deleteWaybillSemantics = 'حذف صورة البوليصة';
+
   // Read-only info
   static const String completedOrderReadOnly =
       'هذا الطلب مكتمل (تم الشحن أو التسليم)، ولا يمكن إضافة أو تعديل الصور.';
@@ -167,6 +187,8 @@ class AppStrings {
   // Cancellation flow
   static const String cancellationSheetTitle = 'تفاصيل الإلغاء';
   static const String cancellationReason = 'سبب الإلغاء';
+  static const String cancellationReasonLabel = 'سبب الإلغاء';
+  static const String noCancellationReason = 'لم يتم إضافة سبب الإلغاء';
   static const String cancellationReasonHint = 'أدخل سبب الإلغاء...';
   static const String cancellationReasonRequired = 'يرجى إدخال سبب الإلغاء';
   static const String restoreStock = 'إرجاع المنتجات للمخزن';

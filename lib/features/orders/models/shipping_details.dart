@@ -12,6 +12,9 @@ class ShippingDetails extends Equatable {
   final String? internalStatus;
   final String? internalStatusText;
   final String? courierStatusCode;
+  /// Cancellation reason returned by the API under `shipping_details.cancelled_reason`.
+  /// Null when the order is not cancelled or when no reason was provided.
+  final String? cancelledReason;
 
   const ShippingDetails({
     this.shippingCompany,
@@ -23,6 +26,7 @@ class ShippingDetails extends Equatable {
     this.internalStatus,
     this.internalStatusText,
     this.courierStatusCode,
+    this.cancelledReason,
   });
 
   factory ShippingDetails.fromJson(Map<String, dynamic> json) {
@@ -52,6 +56,7 @@ class ShippingDetails extends Equatable {
       internalStatus: internalStatus,
       internalStatusText: internalStatusText,
       courierStatusCode: json['courier_status_code']?.toString(),
+      cancelledReason: json['cancelled_reason']?.toString(),
     );
   }
 
@@ -66,5 +71,6 @@ class ShippingDetails extends Equatable {
     internalStatus,
     internalStatusText,
     courierStatusCode,
+    cancelledReason,
   ];
 }

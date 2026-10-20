@@ -72,7 +72,7 @@ class CustomerInfoCard extends StatelessWidget {
             const Divider(height: 20, color: AppColors.divider),
 
             _buildDetailItem(
-              icon: Icons.person_outline,
+              // icon: Icons.person_outline,
               label: AppStrings.customerName,
               value: order.customerName,
             ),
@@ -80,7 +80,7 @@ class CustomerInfoCard extends StatelessWidget {
             if (order.phone != null && order.phone!.isNotEmpty) ...[
               const SizedBox(height: 10),
               _buildDetailItem(
-                icon: Icons.phone_outlined,
+                // icon: Icons.phone_outlined,
                 label: AppStrings.customerPhone,
                 value: order.phone!,
                 textColor: Colors.blue,
@@ -91,7 +91,7 @@ class CustomerInfoCard extends StatelessWidget {
             if (order.whatsapp != null && order.whatsapp!.isNotEmpty) ...[
               const SizedBox(height: 10),
               _buildDetailItem(
-                icon: Icons.chat_outlined,
+                // icon: Icons.chat_outlined,
                 label: AppStrings.customerWhatsApp,
                 value: order.whatsapp!,
               ),
@@ -100,38 +100,38 @@ class CustomerInfoCard extends StatelessWidget {
             if (order.address != null && order.address!.isNotEmpty) ...[
               const SizedBox(height: 10),
               _buildDetailItem(
-                icon: Icons.location_on_outlined,
+                // icon: Icons.location_on_outlined,
                 label: AppStrings.customerAddress,
                 value: order.address!,
               ),
             ],
 
-            if (order.total != null && order.total!.isNotEmpty) ...[
+            if (order.total != null && order.total!.trim().isNotEmpty) ...[
               const SizedBox(height: 10),
               _buildDetailItem(
                 icon: Icons.payments_outlined,
                 label: AppStrings.orderTotal,
-                value: order.total!,
+                value: order.total!.trim(),
               ),
             ],
 
             if (order.remainingAmount != null &&
-                order.remainingAmount!.isNotEmpty) ...[
+                order.remainingAmount!.trim().isNotEmpty) ...[
               const SizedBox(height: 10),
               _buildDetailItem(
                 icon: Icons.account_balance_wallet_outlined,
                 label: AppStrings.remainingAmount,
-                value: order.remainingAmount!,
+                value: order.remainingAmount!.trim(),
               ),
             ],
 
             if (order.remainingType != null &&
-                order.remainingType!.isNotEmpty) ...[
+                order.remainingType!.trim().isNotEmpty) ...[
               const SizedBox(height: 10),
               _buildDetailItem(
                 icon: Icons.category_outlined,
                 label: AppStrings.remainingType,
-                value: order.remainingType!,
+                value: order.remainingType!.trim(),
               ),
             ],
           ],
@@ -141,7 +141,7 @@ class CustomerInfoCard extends StatelessWidget {
   }
 
   Widget _buildDetailItem({
-    required IconData icon,
+    IconData? icon,
     required String label,
     required String value,
     Color? textColor,
@@ -150,8 +150,11 @@ class CustomerInfoCard extends StatelessWidget {
     final content = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 18, color: AppColors.textMuted),
-        const SizedBox(width: 8),
+        if (icon != null) ...[
+          Icon(icon, size: 18, color: AppColors.textMuted),
+          const SizedBox(width: 6),
+        ] else
+          const SizedBox(width: 8),
         Text(
           '$label: ',
           style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),

@@ -8,6 +8,7 @@ import 'package:warehouse_store_keeper/core/storage/secure_storage_service.dart'
 import 'package:warehouse_store_keeper/features/orders/data/orders_remote_data_source.dart';
 
 class MockDio extends Mock implements Dio {}
+
 class MockSecureStorageService extends Mock implements SecureStorageService {}
 
 void main() {
@@ -20,10 +21,7 @@ void main() {
     mockDio = MockDio();
     when(() => mockDio.interceptors).thenReturn(Interceptors());
     mockStorage = MockSecureStorageService();
-    dioClient = DioClient(
-      storageService: mockStorage,
-      customDio: mockDio,
-    );
+    dioClient = DioClient(storageService: mockStorage, customDio: mockDio);
     remoteDataSource = OrdersRemoteDataSourceImpl(dioClient);
   });
 
@@ -37,18 +35,19 @@ void main() {
         'next_page_url': 'https://test.omni-link.net/api/ar/v1/admin/warehouse/orders?page=2',
         'prev_page_url': null,
         'data': [],
-      }
+      },
     };
 
     test('matches backend curl sample: only per_page=30 on initial load without page or status', () async {
-      when(() => mockDio.get<dynamic>(
-            any(),
-            queryParameters: any(named: 'queryParameters'),
-          )).thenAnswer((invocation) async {
-        final queryParams = invocation.namedArguments[#queryParameters] as Map<String, dynamic>;
-        expect(queryParams, {
-          'per_page': AppConstants.defaultPerPage,
-        });
+      when(
+        () => mockDio.get<dynamic>(
+          any(),
+          queryParameters: any(named: 'queryParameters'),
+        ),
+      ).thenAnswer((invocation) async {
+        final queryParams =
+            invocation.namedArguments[#queryParameters] as Map<String, dynamic>;
+        expect(queryParams, {'per_page': AppConstants.defaultPerPage});
 
         return Response<dynamic>(
           data: successResponseData,
@@ -66,11 +65,14 @@ void main() {
     });
 
     test('supports custom perPage and page values', () async {
-      when(() => mockDio.get<dynamic>(
-            any(),
-            queryParameters: any(named: 'queryParameters'),
-          )).thenAnswer((invocation) async {
-        final queryParams = invocation.namedArguments[#queryParameters] as Map<String, dynamic>;
+      when(
+        () => mockDio.get<dynamic>(
+          any(),
+          queryParameters: any(named: 'queryParameters'),
+        ),
+      ).thenAnswer((invocation) async {
+        final queryParams =
+            invocation.namedArguments[#queryParameters] as Map<String, dynamic>;
         expect(queryParams['per_page'], 50);
         expect(queryParams['page'], 3);
         expect(queryParams['status'], 'confirmed');
@@ -83,7 +85,7 @@ void main() {
               'per_page': 50,
               'total': 500,
               'data': [],
-            }
+            },
           },
           statusCode: 200,
           requestOptions: RequestOptions(path: ApiEndpoints.orders('ar')),
@@ -101,11 +103,14 @@ void main() {
     });
 
     test('supports passing backend tab in queryParameters (pending, without_photos, with_photos, completed)', () async {
-      when(() => mockDio.get<dynamic>(
-            any(),
-            queryParameters: any(named: 'queryParameters'),
-          )).thenAnswer((invocation) async {
-        final queryParams = invocation.namedArguments[#queryParameters] as Map<String, dynamic>;
+      when(
+        () => mockDio.get<dynamic>(
+          any(),
+          queryParameters: any(named: 'queryParameters'),
+        ),
+      ).thenAnswer((invocation) async {
+        final queryParams =
+            invocation.namedArguments[#queryParameters] as Map<String, dynamic>;
         expect(queryParams['tab'], 'without_photos');
         expect(queryParams['per_page'], AppConstants.defaultPerPage);
 
@@ -119,5 +124,62 @@ void main() {
       final result = await remoteDataSource.getOrders(tab: 'without_photos');
       expect(result.currentPage, 1);
     });
+
+    test(
+      'supports passing data_type=all for initial load and pull-to-refresh',
+      () async {
+        when(
+          () => mockDio.get<dynamic>(
+            any(),
+            queryParameters: any(named: 'queryParameters'),
+          ),
+        ).thenAnswer((invocation) async {
+          final queryParams =
+              invocation.namedArguments[#queryParameters]
+                  as Map<String, dynamic>;
+          expect(queryParams['data_type'], 'all');
+          expect(queryParams['per_page'], AppConstants.defaultPerPage);
+
+          return Response<dynamic>(
+            data: successResponseData,
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ApiEndpoints.orders('ar')),
+          );
+        });
+
+        final result = await remoteDataSource.getOrders(dataType: 'all');
+        expect(result.currentPage, 1);
+      },
+    );
+
+    test(
+      'supports passing data_type=orders for pagination without statistics',
+      () async {
+        when(
+          () => mockDio.get<dynamic>(
+            any(),
+            queryParameters: any(named: 'queryParameters'),
+          ),
+        ).thenAnswer((invocation) async {
+          final queryParams =
+              invocation.namedArguments[#queryParameters]
+                  as Map<String, dynamic>;
+          expect(queryParams['data_type'], 'orders');
+          expect(queryParams['page'], 2);
+
+          return Response<dynamic>(
+            data: successResponseData,
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ApiEndpoints.orders('ar')),
+          );
+        });
+
+        final result = await remoteDataSource.getOrders(
+          page: 2,
+          dataType: 'orders',
+        );
+        expect(result.currentPage, 1);
+      },
+    );
   });
 }

@@ -1,15 +1,18 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/localization/app_strings.dart';
+import '../../../../core/network/authenticated_cache_manager.dart';
+import '../../../../core/utils/arabic_number_converter.dart';
+import '../../../../core/utils/sha256_util.dart';
 import '../../models/order_details.dart';
 import '../../models/order_media.dart';
 import '../cubits/order_details_cubit.dart';
 import '../cubits/shipment_photos_cubit.dart';
 import '../cubits/shipment_photos_state.dart';
 import '../screens/full_screen_image_viewer.dart';
-import '../../../../core/network/authenticated_cache_manager.dart';
 
 class ShipmentPhotosSection extends StatelessWidget {
   final OrderDetails order;
@@ -21,12 +24,11 @@ class ShipmentPhotosSection extends StatelessWidget {
     return BlocConsumer<ShipmentPhotosCubit, ShipmentPhotosState>(
       listener: (context, state) {
         if (state is ShipmentPhotosSuccess) {
-          // Section 38: Update order details from backend response
           context.read<OrderDetailsCubit>().updateOrder(state.refreshedOrder);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(AppStrings.uploadSuccess),
-              backgroundColor: AppColors.success,
+              backgroundColor: AppColors.redesignSuccessGreen,
             ),
           );
         } else if (state is ShipmentPhotosFailure) {
@@ -36,7 +38,8 @@ class ShipmentPhotosSection extends StatelessWidget {
               backgroundColor: AppColors.error,
             ),
           );
-        } else if (state is ShipmentPhotosIdle && state.notificationMessage != null) {
+        } else if (state is ShipmentPhotosIdle &&
+            state.notificationMessage != null) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(state.notificationMessage!),
@@ -47,392 +50,523 @@ class ShipmentPhotosSection extends StatelessWidget {
       },
       builder: (context, state) {
         final cubit = context.read<ShipmentPhotosCubit>();
+        final isUploading = state is ShipmentPhotosUploading;
+        final addedCount = state.selectedImages.length;
+        final existingCount = order.shipmentPhotos.length;
+        final totalCount = existingCount + addedCount;
+        final isSatisfied = totalCount >= 5;
 
-        return Card(
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: const BorderSide(color: AppColors.cardBorder, width: 1.2),
+        // Badge styling: "مكتمل" at >=5, else "مطلوب"
+        final String badgeLabel = isSatisfied ? 'مكتمل' : 'مطلوب';
+        final Color badgeColor = isSatisfied
+            ? AppColors.redesignSuccessGreen
+            : AppColors.redesignPrimaryBlue;
+        final Color badgeBg = isSatisfied
+            ? AppColors.redesignBadgeGreenBg
+            : AppColors.redesignBadgeBlueBg;
+
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.redesignCardBorder, width: 1.2),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header with photo count
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          Icon(Icons.photo_library_outlined, color: AppColors.primary, size: 20),
-                          SizedBox(width: 8),
-                          Flexible(
-                            child: Text(
-                              AppStrings.sectionShipmentPhotos,
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textPrimary,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Header (Title + Box Icon + Badge) ─────────────────────
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.inventory_2_outlined,
+                    color: AppColors.redesignPrimaryBlue,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      AppStrings.sectionShipmentPhotos,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.redesignMainText,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.1),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: badgeBg,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      badgeLabel,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: badgeColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 8),
+
+              // ── Instruction ──────────────────────────────────────────
+              const Text(
+                AppStrings.shipmentPhotosInstruction,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.redesignSecondaryText,
+                  height: 1.4,
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+              // ── Counter row + Segmented Progress Bar ─────────────────
+              _buildCounterRow(totalCount, isSatisfied),
+
+              const SizedBox(height: 8),
+
+              _buildSegmentedProgressBar(totalCount),
+
+              const SizedBox(height: 14),
+
+              // ── Photo Grid or Empty State ────────────────────────────
+              if (totalCount == 0 && !order.isReadOnly)
+                _buildEmptyState()
+              else
+                _buildPhotoGrid(context, state, cubit),
+
+              // ── Actions & Upload Progress ────────────────────────────
+              if (order.isReadOnly) ...[
+                const SizedBox(height: 14),
+                _buildReadOnlyBanner(),
+              ] else ...[
+                const SizedBox(height: 14),
+
+                // Primary camera button
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    onPressed: isUploading ? null : cubit.pickFromCamera,
+                    icon: const Icon(Icons.camera_alt_outlined, size: 20),
+                    label: const Text(AppStrings.takePhoto),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.redesignPrimaryBlue,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Text(
-                        '${order.shipmentPhotos.length} صورة',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
-                        ),
+                      textStyle: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                  ],
+                  ),
                 ),
-                const Divider(height: 20, color: AppColors.divider),
 
-                // 1. Existing remote photos
-                if (order.shipmentPhotos.isEmpty)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: AppColors.background,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      AppStrings.noPhotosYet,
-                      style: TextStyle(color: AppColors.textMuted, fontSize: 13),
-                    ),
-                  )
-                else ...[
-                  const Text(
-                    AppStrings.existingPhotos,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildExistingGallery(context, order.shipmentPhotos),
-                ],
+                const SizedBox(height: 4),
 
-                // 2. Upload section (Only if order is NOT delivered / read-only)
-                if (order.isReadOnly) ...[
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.statusDelivered.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: AppColors.statusDelivered.withValues(alpha: 0.3),
+                // Secondary gallery action
+                SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: TextButton.icon(
+                    onPressed: isUploading ? null : cubit.pickFromGallery,
+                    icon: const Icon(Icons.photo_library_outlined, size: 20),
+                    label: const Text(AppStrings.chooseFromGallery),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.redesignPrimaryBlue,
+                      textStyle: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    child: Row(
-                      children: const [
-                        Icon(Icons.check_circle_outline, color: AppColors.statusDelivered, size: 18),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            AppStrings.completedOrderReadOnly,
-                            style: TextStyle(
-                              color: AppColors.statusDelivered,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
-                ] else ...[
-                  const SizedBox(height: 20),
-                  const Divider(height: 1, color: AppColors.divider),
-                  const SizedBox(height: 16),
+                ),
 
-                  // Camera & Gallery action buttons
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final cameraButton = OutlinedButton.icon(
-                        onPressed: state is ShipmentPhotosUploading ? null : cubit.pickFromCamera,
-                        icon: const Icon(Icons.camera_alt_outlined, size: 18),
-                        label: const Text(AppStrings.takePhoto),
-                      );
-
-                      final galleryButton = OutlinedButton.icon(
-                        onPressed: state is ShipmentPhotosUploading ? null : cubit.pickFromGallery,
-                        icon: const Icon(Icons.photo_size_select_actual_outlined, size: 18),
-                        label: const Text(AppStrings.chooseFromGallery),
-                      );
-
-                      if (constraints.maxWidth < 400) {
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            cameraButton,
-                            const SizedBox(height: 10),
-                            galleryButton,
-                          ],
-                        );
-                      }
-
-                      return Row(
-                        children: [
-                          Expanded(child: cameraButton),
-                          const SizedBox(width: 10),
-                          Expanded(child: galleryButton),
-                        ],
-                      );
-                    },
-                  ),
-
-                  // Selected Images Preview Grid
-                  if (state.selectedImages.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          '${AppStrings.selectedPhotos} (${state.selectedImages.length})',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: state is ShipmentPhotosUploading ? null : cubit.clearSelection,
-                          child: const Text(
-                            AppStrings.clearSelection,
-                            style: TextStyle(color: AppColors.error, fontSize: 12),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    _buildSelectedGallery(state, cubit),
-                  ],
-
-                  const SizedBox(height: 16),
-
-                  // Minimum requirement rule banner & status
-                  _buildMinimumPhotosNotice(state),
-
-                  const SizedBox(height: 16),
-
-                  // Upload Progress indicator if uploading
-                  if (state is ShipmentPhotosUploading) ...[
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              AppStrings.uploadingPhotos,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                            Text(
-                              '${(state.progress * 100).toStringAsFixed(0)}%',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        LinearProgressIndicator(
-                          value: state.progress,
-                          backgroundColor: AppColors.divider,
-                          color: AppColors.primary,
-                          minHeight: 6,
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-                    ),
-                  ],
-
-                  // Upload Button
-                  ElevatedButton.icon(
-                    onPressed: (state.canUpload && state is! ShipmentPhotosUploading)
-                        ? cubit.uploadPhotos
-                        : null,
-                    icon: const Icon(Icons.cloud_upload_outlined),
-                    label: Text(
-                      state is ShipmentPhotosFailure
-                          ? AppStrings.retryUpload
-                          : AppStrings.uploadShipmentPhotos,
-                    ),
-                  ),
+                if (state is ShipmentPhotosUploading) ...[
+                  const SizedBox(height: 10),
+                  _buildProgressBar(state),
                 ],
               ],
-            ),
+            ],
           ),
         );
       },
     );
   }
 
-  Widget _buildExistingGallery(BuildContext context, List<OrderMedia> photos) {
-    // Extract plain URLs for the full-screen viewer (which accepts List<String>)
-    final urls = photos.map((p) => p.url).toList();
-    return SizedBox(
-      height: 90,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: photos.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final url = photos[index].url;
-          return GestureDetector(
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => FullScreenImageViewer(
-                    imageUrls: urls,
-                    initialIndex: index,
-                    title: 'صور الشحنة (${index + 1}/${photos.length})',
-                  ),
-                ),
-              );
-            },
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                width: 90,
-                height: 90,
-                color: AppColors.background,
-                child: CachedNetworkImage(
-                  imageUrl: url,
-                  cacheManager: AuthenticatedCacheManager.instance,
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) => const Center(
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+  // ── Counter Row ─────────────────────────────────────────────────────────────
+
+  Widget _buildCounterRow(int totalCount, bool isSatisfied) {
+    final String leftCountLabel;
+    final Color leftCountColor;
+
+    if (isSatisfied) {
+      leftCountLabel =
+          '${ArabicNumberConverter.convert(totalCount)} صور مضافة';
+      leftCountColor = AppColors.redesignSuccessGreen;
+    } else if (totalCount == 0) {
+      leftCountLabel = '٠ من ٥ صور';
+      leftCountColor = AppColors.redesignPrimaryBlue;
+    } else {
+      leftCountLabel =
+          '${ArabicNumberConverter.convert(totalCount)} من ٥ صور';
+      leftCountColor = AppColors.redesignPrimaryBlue;
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Flexible(
+          child: Text(
+            leftCountLabel,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: leftCountColor,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(width: 8),
+        const Text(
+          '٥ صور على الأقل',
+          style: TextStyle(
+            fontSize: 12,
+            color: AppColors.redesignSecondaryText,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Segmented Progress Bar (5 visual segments) ──────────────────────────────
+
+  Widget _buildSegmentedProgressBar(int totalCount) {
+    return Row(
+      children: List.generate(5, (index) {
+        final isFilled = index < totalCount;
+        return Expanded(
+          child: Container(
+            margin: EdgeInsets.only(
+              left: index == 4 ? 0 : 3,
+              right: index == 0 ? 0 : 3,
+            ),
+            height: 4,
+            decoration: BoxDecoration(
+              color: isFilled
+                  ? AppColors.redesignPrimaryBlue
+                  : AppColors.redesignSegmentUnfilled,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  // ── Empty State ─────────────────────────────────────────────────────────────
+
+  Widget _buildEmptyState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      decoration: BoxDecoration(
+        color: AppColors.redesignEmptyBg,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: const Row(
+        children: [
+          Expanded(
+            child: Text(
+              AppStrings.shipmentPhotosEmptyState,
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.redesignSecondaryText,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          Icon(
+            Icons.photo_outlined,
+            size: 22,
+            color: Color(0xFF94A3B8),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Photo Grid ──────────────────────────────────────────────────────────────
+
+  Widget _buildPhotoGrid(
+    BuildContext context,
+    ShipmentPhotosState state,
+    ShipmentPhotosCubit cubit,
+  ) {
+    final isUploading = state is ShipmentPhotosUploading;
+    final existingPhotos = order.shipmentPhotos;
+    final selectedImages = state.selectedImages;
+    final urls = existingPhotos.map((p) => p.url).toList();
+    final bool showAddTile = !isUploading && !order.isReadOnly;
+    final totalItems =
+        existingPhotos.length + selectedImages.length + (showAddTile ? 1 : 0);
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: 1.0,
+      ),
+      itemCount: totalItems,
+      itemBuilder: (context, index) {
+        if (index < existingPhotos.length) {
+          return _buildExistingPhotoCell(
+            context,
+            existingPhotos[index],
+            index,
+            urls,
+          );
+        }
+        final selectedIndex = index - existingPhotos.length;
+        if (selectedIndex < selectedImages.length) {
+          return _buildSelectedPhotoCell(
+            selectedImages[selectedIndex],
+            cubit,
+            isUploading,
+          );
+        }
+        return _buildAddPhotoCell(cubit, isUploading);
+      },
+    );
+  }
+
+  Widget _buildExistingPhotoCell(
+    BuildContext context,
+    OrderMedia photo,
+    int index,
+    List<String> urls,
+  ) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => FullScreenImageViewer(
+              imageUrls: urls,
+              initialIndex: index,
+              title: 'صور الشحنة (${index + 1}/${urls.length})',
+            ),
+          ),
+        );
+      },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: CachedNetworkImage(
+          imageUrl: photo.url,
+          cacheManager: AuthenticatedCacheManager.instance,
+          fit: BoxFit.cover,
+          placeholder: (context, url) => Container(
+            color: AppColors.redesignEmptyBg,
+            child: const Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          ),
+          errorWidget: (context, url, error) => Container(
+            color: AppColors.redesignEmptyBg,
+            child: const Icon(
+              Icons.broken_image_outlined,
+              color: AppColors.redesignSecondaryText,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSelectedPhotoCell(
+    HashedImageItem item,
+    ShipmentPhotosCubit cubit,
+    bool isUploading,
+  ) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.memory(
+            item.bytes,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => Container(
+              color: AppColors.redesignEmptyBg,
+              child: const Icon(
+                Icons.broken_image_outlined,
+                color: AppColors.redesignSecondaryText,
+              ),
+            ),
+          ),
+        ),
+        if (!isUploading)
+          Positioned(
+            top: 4,
+            left: 4,
+            child: Semantics(
+              label: AppStrings.deletePhotoSemantics,
+              button: true,
+              child: GestureDetector(
+                key: ValueKey('remove_shipment_photo_${item.hash}'),
+                behavior: HitTestBehavior.opaque,
+                onTap: () => cubit.removeImage(item),
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  alignment: Alignment.topLeft,
+                  child: Container(
+                    width: 24,
+                    height: 24,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 4,
+                          offset: Offset(0, 1),
+                        ),
+                      ],
                     ),
-                  ),
-                  errorWidget: (context, url, error) => const Icon(
-                    Icons.broken_image_outlined,
-                    color: AppColors.textMuted,
+                    child: const Icon(
+                      Icons.close_rounded,
+                      size: 14,
+                      color: AppColors.redesignSecondaryText,
+                    ),
                   ),
                 ),
               ),
             ),
-          );
-        },
-      ),
+          ),
+      ],
     );
   }
 
-  Widget _buildSelectedGallery(ShipmentPhotosState state, ShipmentPhotosCubit cubit) {
-    final isUploading = state is ShipmentPhotosUploading;
-    return SizedBox(
-      height: 90,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: state.selectedImages.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final item = state.selectedImages[index];
-          return Stack(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  width: 90,
-                  height: 90,
-                  color: AppColors.background,
-                  child: Image.memory(
-                    item.bytes,
-                    fit: BoxFit.cover,
-                  ),
-                ),
+  Widget _buildAddPhotoCell(ShipmentPhotosCubit cubit, bool isUploading) {
+    return GestureDetector(
+      onTap: isUploading ? null : cubit.pickFromCamera,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.redesignAddTileBg,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.add_rounded,
+              color: AppColors.redesignPrimaryBlue,
+              size: 26,
+            ),
+            SizedBox(height: 4),
+            Text(
+              'إضافة صورة',
+              style: TextStyle(
+                fontSize: 11,
+                color: AppColors.redesignPrimaryBlue,
+                fontWeight: FontWeight.w700,
               ),
-              if (!isUploading)
-                Positioned(
-                  top: 4,
-                  right: 4,
-                  child: GestureDetector(
-                    onTap: () => cubit.removeImage(item),
-                    child: Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: const BoxDecoration(
-                        color: Colors.black54,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.close,
-                        size: 14,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildMinimumPhotosNotice(ShipmentPhotosState state) {
-    final isSatisfied = state.totalCount >= 5;
-    final remaining = state.remainingForMinimum;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: isSatisfied
-            ? AppColors.success.withValues(alpha: 0.1)
-            : AppColors.accent.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: isSatisfied
-              ? AppColors.success.withValues(alpha: 0.3)
-              : AppColors.accent.withValues(alpha: 0.4),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
-      child: Row(
-        children: [
-          Icon(
-            isSatisfied ? Icons.check_circle_outline : Icons.info_outline,
-            size: 20,
-            color: isSatisfied ? AppColors.success : AppColors.accentDark,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              isSatisfied
-                  ? 'تم استيفاء الحد الأدنى (${state.totalCount} صور إجمالاً). يمكنك الرفع الآن.'
-                  : AppStrings.minShipmentPhotosRequirement(remaining),
+    );
+  }
+
+  // ── Upload Progress Bar ───────────────────────────────────────────────────────
+
+  Widget _buildProgressBar(ShipmentPhotosUploading state) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              AppStrings.uploadingPhotos,
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: isSatisfied ? AppColors.success : AppColors.accentDark,
+                color: AppColors.redesignPrimaryBlue,
+              ),
+            ),
+            Text(
+              '${(state.progress * 100).toStringAsFixed(0)}%',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppColors.redesignPrimaryBlue,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        LinearProgressIndicator(
+          value: state.progress,
+          backgroundColor: AppColors.redesignSegmentUnfilled,
+          color: AppColors.redesignPrimaryBlue,
+          minHeight: 4,
+          borderRadius: BorderRadius.circular(2),
+        ),
+      ],
+    );
+  }
+
+  // ── Read-only Banner ──────────────────────────────────────────────────────────
+
+  Widget _buildReadOnlyBanner() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.statusDelivered.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: AppColors.statusDelivered.withValues(alpha: 0.3),
+        ),
+      ),
+      child: const Row(
+        children: [
+          Icon(
+            Icons.check_circle_outline,
+            color: AppColors.statusDelivered,
+            size: 18,
+          ),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              AppStrings.completedOrderReadOnly,
+              style: TextStyle(
+                color: AppColors.statusDelivered,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),

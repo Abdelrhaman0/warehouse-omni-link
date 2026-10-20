@@ -1,5 +1,7 @@
 import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
+
 import '../../../../core/constants/api_endpoints.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/error/exceptions.dart';
@@ -15,6 +17,7 @@ abstract class OrdersRemoteDataSource {
     int page = 1,
     int perPage = AppConstants.defaultPerPage,
     String lang = ApiEndpoints.defaultLanguage,
+    String? dataType,
   });
 
   Future<OrderDetails> getOrderDetails({
@@ -61,10 +64,9 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
     int page = 1,
     int perPage = AppConstants.defaultPerPage,
     String lang = ApiEndpoints.defaultLanguage,
+    String? dataType,
   }) async {
-    final queryParams = <String, dynamic>{
-      'per_page': perPage,
-    };
+    final queryParams = <String, dynamic>{'per_page': perPage};
     if (page > 1) {
       queryParams['page'] = page;
     }
@@ -74,20 +76,24 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
     if (tab != null && tab.isNotEmpty) {
       queryParams['tab'] = tab;
     }
+    if (dataType != null && dataType.isNotEmpty) {
+      queryParams['data_type'] = dataType;
+    }
 
     final response = await _dioClient.request(
-      (dio) => dio.get(
-        ApiEndpoints.orders(lang),
-        queryParameters: queryParams,
-      ),
+      (dio) => dio.get(ApiEndpoints.orders(lang), queryParameters: queryParams),
     );
 
     if (response.data is Map<String, dynamic>) {
       final map = response.data as Map<String, dynamic>;
-      final data = map['data'] as Map<String, dynamic>?;
-      if (data != null) {
+      final data = map['data'];
+      if (data is Map<String, dynamic>) {
+        if (!data.containsKey('meta') && map.containsKey('meta')) {
+          data['meta'] = map['meta'];
+        }
         return PaginatedOrders.fromJson(data);
       }
+      return PaginatedOrders.fromJson(map);
     }
     throw ServerException(message: 'تعذر جلب طلبات المستودع');
   }
@@ -122,25 +128,27 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
 
     for (var i = 0; i < photos.length; i++) {
       final item = photos[i];
-      final filename = item.name.isNotEmpty ? item.name : 'shipment_photo_$i.jpg';
+      final filename = item.name.isNotEmpty
+          ? item.name
+          : 'shipment_photo_$i.jpg';
       formData.files.add(
         MapEntry(
           'photos[]',
-          MultipartFile.fromBytes(
-            item.bytes,
-            filename: filename,
-          ),
+          MultipartFile.fromBytes(item.bytes, filename: filename),
         ),
       );
     }
 
     final url = ApiEndpoints.shipmentPhotos(lang, orderId);
-    final fieldNames = formData.fields.map((e) => e.key).toList() +
+    final fieldNames =
+        formData.fields.map((e) => e.key).toList() +
         formData.files.map((e) => e.key).toList();
-    final filesSummary = formData.files.map((entry) {
-      final file = entry.value;
-      return 'name: ${file.filename}, size: ${file.length} bytes, MIME: ${file.contentType ?? "Not set (Dio default)"}';
-    }).join('\n   - ');
+    final filesSummary = formData.files
+        .map((entry) {
+          final file = entry.value;
+          return 'name: ${file.filename}, size: ${file.length} bytes, MIME: ${file.contentType ?? "Not set (Dio default)"}';
+        })
+        .join('\n   - ');
 
     // ignore: avoid_print
     print('''
@@ -152,44 +160,44 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
    Files (${formData.files.length}):
    - $filesSummary''');
 
-    final response = await _dioClient.request(
-      (dio) async {
-        try {
-          final res = await dio.post(
-            url,
-            data: formData,
-            onSendProgress: onSendProgress,
-          );
-          // ignore: avoid_print
-          print('''
+    final response = await _dioClient.request((dio) async {
+      try {
+        final res = await dio.post(
+          url,
+          data: formData,
+          onSendProgress: onSendProgress,
+        );
+        // ignore: avoid_print
+        print('''
 ✅ WAREHOUSE IMAGE UPLOAD: RESPONSE RECEIVED
    URL: $url
    Status Code: ${res.statusCode}
    Response Body: ${res.data}''');
-          return res;
-        } on DioException catch (dioErr) {
-          // ignore: avoid_print
-          print('''
+        return res;
+      } on DioException catch (dioErr) {
+        // ignore: avoid_print
+        print('''
 ❌ WAREHOUSE IMAGE UPLOAD: DIO EXCEPTION
    URL: $url
    Status Code: ${dioErr.response?.statusCode}
    Response Body: ${dioErr.response?.data}
    Error Type: ${dioErr.type}
    Message: ${dioErr.message}''');
-          rethrow;
-        } catch (e) {
-          // ignore: avoid_print
-          print('''
+        rethrow;
+      } catch (e) {
+        // ignore: avoid_print
+        print('''
 ❌ WAREHOUSE IMAGE UPLOAD: UNEXPECTED EXCEPTION
    URL: $url
    Exception: $e''');
-          rethrow;
-        }
-      },
-    );
+        rethrow;
+      }
+    });
 
     if (response.data is Map<String, dynamic>) {
-      final uploadResponse = ShipmentPhotoUploadResponse.fromJson(response.data);
+      final uploadResponse = ShipmentPhotoUploadResponse.fromJson(
+        response.data,
+      );
       if (!uploadResponse.status) {
         throw ServerException(
           message: uploadResponse.message,
@@ -212,25 +220,27 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
 
     for (var i = 0; i < photos.length; i++) {
       final item = photos[i];
-      final filename = item.name.isNotEmpty ? item.name : 'waybill_photo_$i.jpg';
+      final filename = item.name.isNotEmpty
+          ? item.name
+          : 'waybill_photo_$i.jpg';
       formData.files.add(
         MapEntry(
           'photos[]',
-          MultipartFile.fromBytes(
-            item.bytes,
-            filename: filename,
-          ),
+          MultipartFile.fromBytes(item.bytes, filename: filename),
         ),
       );
     }
 
     final url = ApiEndpoints.waybillPhotos(lang, orderId);
-    final fieldNames = formData.fields.map((e) => e.key).toList() +
+    final fieldNames =
+        formData.fields.map((e) => e.key).toList() +
         formData.files.map((e) => e.key).toList();
-    final filesSummary = formData.files.map((entry) {
-      final file = entry.value;
-      return 'name: ${file.filename}, size: ${file.length} bytes, MIME: ${file.contentType ?? "Not set (Dio default)"}';
-    }).join('\n   - ');
+    final filesSummary = formData.files
+        .map((entry) {
+          final file = entry.value;
+          return 'name: ${file.filename}, size: ${file.length} bytes, MIME: ${file.contentType ?? "Not set (Dio default)"}';
+        })
+        .join('\n   - ');
 
     // ignore: avoid_print
     print('''
@@ -242,41 +252,39 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
    Files (${formData.files.length}):
    - $filesSummary''');
 
-    final response = await _dioClient.request(
-      (dio) async {
-        try {
-          final res = await dio.post(
-            url,
-            data: formData,
-            onSendProgress: onSendProgress,
-          );
-          // ignore: avoid_print
-          print('''
+    final response = await _dioClient.request((dio) async {
+      try {
+        final res = await dio.post(
+          url,
+          data: formData,
+          onSendProgress: onSendProgress,
+        );
+        // ignore: avoid_print
+        print('''
 ✅ WAREHOUSE IMAGE UPLOAD: RESPONSE RECEIVED
    URL: $url
    Status Code: ${res.statusCode}
    Response Body: ${res.data}''');
-          return res;
-        } on DioException catch (dioErr) {
-          // ignore: avoid_print
-          print('''
+        return res;
+      } on DioException catch (dioErr) {
+        // ignore: avoid_print
+        print('''
 ❌ WAREHOUSE IMAGE UPLOAD: DIO EXCEPTION
    URL: $url
    Status Code: ${dioErr.response?.statusCode}
    Response Body: ${dioErr.response?.data}
    Error Type: ${dioErr.type}
    Message: ${dioErr.message}''');
-          rethrow;
-        } catch (e) {
-          // ignore: avoid_print
-          print('''
+        rethrow;
+      } catch (e) {
+        // ignore: avoid_print
+        print('''
 ❌ WAREHOUSE IMAGE UPLOAD: UNEXPECTED EXCEPTION
    URL: $url
    Exception: $e''');
-          rethrow;
-        }
-      },
-    );
+        rethrow;
+      }
+    });
 
     if (response.data is Map<String, dynamic>) {
       final uploadResponse = WaybillPhotoUploadResponse.fromJson(response.data);
@@ -304,10 +312,8 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
     if (restoreStock != null) body['restore_stock'] = restoreStock;
 
     final response = await _dioClient.request(
-      (dio) => dio.put(
-        ApiEndpoints.updateOrderStatus(lang, orderId),
-        data: body,
-      ),
+      (dio) =>
+          dio.put(ApiEndpoints.updateOrderStatus(lang, orderId), data: body),
     );
 
     // The PATCH response may or may not contain updated order data.
