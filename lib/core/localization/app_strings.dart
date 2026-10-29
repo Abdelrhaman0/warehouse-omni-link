@@ -223,4 +223,11 @@ class AppStrings {
   static const String restoreStockYes = 'نعم، أعد للمخزن';
   static const String restoreStockNo = 'لا، لا تعد';
   static const String confirmCancellation = 'تأكيد الإلغاء';
+
+  // Role names & RBAC
+  static const String roleStoreKeeper = 'أمين المستودع';
+  static const String roleSuperAdmin = 'مدير عام';
+  static const String roleUnknown = 'مستخدم';
+  static const String dashboard = 'لوحة التحكم';
+  static const String unauthorizedDashboardAccess = 'غير مصرح لك بالوصول إلى لوحة التحكم.';
 }

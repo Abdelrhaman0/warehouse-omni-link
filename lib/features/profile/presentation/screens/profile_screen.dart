@@ -189,7 +189,7 @@ class ProfileScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  user.role!,
+                  user.roleDisplay,
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,

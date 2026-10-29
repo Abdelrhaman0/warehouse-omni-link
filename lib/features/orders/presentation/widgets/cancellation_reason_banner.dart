@@ -25,7 +25,7 @@ class CancellationReasonBanner extends StatelessWidget {
     final rawReason = order.shippingDetails?.cancelledReason?.trim();
     final hasReason = rawReason != null && rawReason.isNotEmpty;
     final displayReason =
-        hasReason ? rawReason! : AppStrings.noCancellationReason;
+        hasReason ? rawReason : AppStrings.noCancellationReason;
 
     return Container(
       width: double.infinity,

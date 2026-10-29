@@ -365,4 +365,12 @@ class OrdersCubit extends Cubit<OrdersState> {
       );
     }
   }
+
+  /// Reset all orders, tabs, and dashboard statistics state (e.g. on logout or session expiration).
+  /// Guarantees that no stale dashboard statistics or cached orders leak across sessions.
+  void reset() {
+    _openRequestId++;
+    _completedRequestId++;
+    emit(const OrdersState());
+  }
 }

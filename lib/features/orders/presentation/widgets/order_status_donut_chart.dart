@@ -137,11 +137,12 @@ class _OrderStatusDonutChartState extends State<OrderStatusDonutChart>
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // ── Header ─────────────────────────────────────────────────────
           const Text(
             'إحصائيات حالات الطلبات',
+            textAlign: TextAlign.right,
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w800,
@@ -152,6 +153,7 @@ class _OrderStatusDonutChartState extends State<OrderStatusDonutChart>
           const SizedBox(height: 2),
           const Text(
             'توزيع جميع الطلبات',
+            textAlign: TextAlign.right,
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,
@@ -160,12 +162,9 @@ class _OrderStatusDonutChartState extends State<OrderStatusDonutChart>
           ),
           const SizedBox(height: 14),
 
-          // ── Horizontal Body: Donut (start) + Legend (end) ──────────────
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Donut Chart
-              SizedBox(
+          // Centered chart followed by full-width, readable status rows.
+          Center(
+            child: SizedBox(
                 width: chartSize,
                 height: chartSize,
                 child: GestureDetector(
@@ -225,49 +224,38 @@ class _OrderStatusDonutChartState extends State<OrderStatusDonutChart>
                   ),
                 ),
               ),
-              const SizedBox(width: 14),
-
-              // Legend rows
-              Expanded(
-                child: total == 0
-                    ? const Center(
-                        child: Text(
-                          'لا توجد طلبات مسجلة حالياً',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textMuted,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      )
-                    : Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          for (int i = 0; i < widget.items.length; i++) ...[
-                            if (i > 0) const SizedBox(height: 8),
-                            _LegendRow(
-                              item: widget.items[i],
-                              total: total,
-                              isSelected: _hoveredOrSelectedIndex == i,
-                              onTap: () {
-                                setState(() {
-                                  _hoveredOrSelectedIndex =
-                                      (_hoveredOrSelectedIndex == i)
-                                          ? null
-                                          : i;
-                                });
-                                widget.onStatusSelected(
-                                  widget.items[i].targetTab,
-                                  filterStatus: widget.items[i].filterKey,
-                                );
-                              },
-                            ),
-                          ],
-                        ],
-                      ),
-              ),
-            ],
           ),
+          const SizedBox(height: 16),
+          if (total == 0)
+            const Center(
+              child: Text(
+                'لا توجد طلبات مسجلة حالياً',
+                style: TextStyle(fontSize: 12, color: AppColors.textMuted,
+                    fontWeight: FontWeight.w500),
+              ),
+            )
+          else
+            Column(
+              children: [
+                for (int i = 0; i < widget.items.length; i++) ...[
+                  if (i > 0)
+                    const Divider(height: 1, color: Color(0xFFE1E7F0)),
+                  _LegendRow(
+                    item: widget.items[i],
+                    total: total,
+                    isSelected: _hoveredOrSelectedIndex == i,
+                    onTap: () {
+                      setState(() {
+                        _hoveredOrSelectedIndex =
+                            _hoveredOrSelectedIndex == i ? null : i;
+                      });
+                      widget.onStatusSelected(widget.items[i].targetTab,
+                          filterStatus: widget.items[i].filterKey);
+                    },
+                  ),
+                ],
+              ],
+            ),
 
           // ── Footer hint ───────────────────────────────────────────────
           // if (total > 0) ...[
@@ -318,29 +306,35 @@ class _LegendRow extends StatelessWidget {
       borderRadius: BorderRadius.circular(6),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 7),
         decoration: BoxDecoration(
           color: isSelected
               ? item.color.withValues(alpha: 0.08)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
         ),
-        child: Row(
-          children: [
-            // Color dot
-            Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: item.color,
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: 6),
-            // Label
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: Row(
+            children: [
+          SizedBox(
+            width: 45,
+            child: Text(percentageStr, textAlign: TextAlign.left,
+                style: const TextStyle(fontSize: 11, color: Color(0xFF71809A))),
+          ),
+          const SizedBox(width: 8),
+          // Count
+          SizedBox(
+            width: 38,
+            child: Text(countStr, textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800,
+                    color: isSelected ? item.color : AppColors.textPrimary)),
+          ),
+          const SizedBox(width: 8),
             Expanded(
               child: Text(
                 item.label,
+              textAlign: TextAlign.right,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
@@ -348,30 +342,11 @@ class _LegendRow extends StatelessWidget {
                 ),
               ),
             ),
-            // Count
-            Text(
-              countStr,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-                color: isSelected ? item.color : AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(width: 6),
-            // Percentage
-            SizedBox(
-              width: 42,
-              child: Text(
-                percentageStr,
-                textAlign: TextAlign.end,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ),
-          ],
+          const SizedBox(width: 8),
+          Container(width: 7, height: 7, decoration: BoxDecoration(
+              color: item.color, shape: BoxShape.circle)),
+            ],
+          ),
         ),
       ),
     );

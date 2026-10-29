@@ -38,19 +38,6 @@ class HandoverTabView extends StatelessWidget {
     } catch (_) {}
   }
 
-  String _formatTime(String? dateStr) {
-    if (dateStr == null || dateStr.trim().isEmpty) return '';
-    try {
-      final dt = DateTime.tryParse(dateStr);
-      if (dt == null) return dateStr;
-      final h = dt.hour.toString().padLeft(2, '0');
-      final m = dt.minute.toString().padLeft(2, '0');
-      return '$h:$m';
-    } catch (_) {
-      return dateStr;
-    }
-  }
-
   String _formatDate(String? dateStr) {
     if (dateStr == null || dateStr.trim().isEmpty) return '';
     try {

@@ -218,7 +218,7 @@ void main() {
   // ══════════════════════════════════════════════════════════════════════════
 
   group('HandoverTabView — cancellation reason after timeline', () {
-    Widget _buildHandover(OrderDetails order) => _wrap(
+    Widget buildHandover(OrderDetails order) => _wrap(
           HandoverTabView(
             order: order,
             onUpdateStatus: () {},
@@ -233,7 +233,7 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
 
       final order = _cancelledOrder(cancelledReason: 'العميل غير متاح');
-      await tester.pumpWidget(_buildHandover(order));
+      await tester.pumpWidget(buildHandover(order));
       await tester.pumpAndSettle();
 
       expect(find.text(AppStrings.cancellationReasonLabel), findsWidgets);
@@ -249,7 +249,7 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
 
       final order = _cancelledOrder(cancelledReason: null);
-      await tester.pumpWidget(_buildHandover(order));
+      await tester.pumpWidget(buildHandover(order));
       await tester.pumpAndSettle();
 
       expect(find.text(AppStrings.cancellationReasonLabel), findsWidgets);
@@ -264,7 +264,7 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
 
       final order = _confirmedOrder();
-      await tester.pumpWidget(_buildHandover(order));
+      await tester.pumpWidget(buildHandover(order));
       await tester.pumpAndSettle();
 
       expect(find.text(AppStrings.cancellationReasonLabel), findsNothing);
@@ -277,7 +277,7 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
 
       final order = _cancelledOrder(cancelledReason: 'تجربة');
-      await tester.pumpWidget(_buildHandover(order));
+      await tester.pumpWidget(buildHandover(order));
       await tester.pumpAndSettle();
 
       // Timeline section title must still be present

@@ -4,6 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/localization/app_strings.dart';
 import '../../../auth/data/auth_repository.dart';
+import '../../../auth/presentation/cubit/auth_cubit.dart';
+import '../../../auth/presentation/cubit/auth_state.dart';
 import '../../../profile/presentation/screens/profile_screen.dart';
 import '../../models/order_status.dart';
 import '../../models/order_summary.dart';
@@ -32,16 +34,36 @@ class _HomeOrdersScreenState extends State<HomeOrdersScreen>
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
+  bool _canAccessDashboard(BuildContext context) {
+    try {
+      final authState = context.read<AuthCubit>().state;
+      if (authState is Authenticated) {
+        return authState.user.canAccessDashboard;
+      }
+    } catch (_) {}
+    return false;
+  }
+
   @override
   void initState() {
     super.initState();
-    _currentNavIndex = widget.initialNavIndex;
+    final canAccess = _canAccessDashboard(context);
+    if (!canAccess && widget.initialNavIndex == 0) {
+      _currentNavIndex = 1;
+    } else {
+      _currentNavIndex = widget.initialNavIndex;
+    }
     _tabController = TabController(length: 2, vsync: this);
 
-    // Initial fetch for open and completed orders so dashboard has complete statistics
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<OrdersCubit>().loadInitial(OrdersTab.open);
-      context.read<OrdersCubit>().loadInitial(OrdersTab.completed);
+      if (!mounted) return;
+      final canAccess = _canAccessDashboard(context);
+      if (canAccess) {
+        context.read<OrdersCubit>().loadInitial(OrdersTab.open);
+        context.read<OrdersCubit>().loadInitial(OrdersTab.completed);
+      } else {
+        context.read<OrdersCubit>().loadInitial(OrdersTab.open);
+      }
     });
 
     _tabController.addListener(() {
@@ -49,8 +71,9 @@ class _HomeOrdersScreenState extends State<HomeOrdersScreen>
         setState(() {});
       }
       if (!_tabController.indexIsChanging) {
-        final tab =
-            _tabController.index == 0 ? OrdersTab.open : OrdersTab.completed;
+        final tab = _tabController.index == 0
+            ? OrdersTab.open
+            : OrdersTab.completed;
         if (context.read<OrdersCubit>().state.currentTab != tab) {
           context.read<OrdersCubit>().switchTab(tab);
         }
@@ -75,9 +98,11 @@ class _HomeOrdersScreenState extends State<HomeOrdersScreen>
   void _onScroll(ScrollController controller, OrdersTab tab) {
     if (!controller.hasClients) return;
     final cubit = context.read<OrdersCubit>();
-    final data =
-        tab == OrdersTab.open ? cubit.state.openOrders : cubit.state.completedOrders;
-    if (data.errorMessage != null || data.isLoadingMore || !data.hasMore) return;
+    final data = tab == OrdersTab.open
+        ? cubit.state.openOrders
+        : cubit.state.completedOrders;
+    if (data.errorMessage != null || data.isLoadingMore || !data.hasMore)
+      return;
 
     final maxScroll = controller.position.maxScrollExtent;
     final currentScroll = controller.position.pixels;
@@ -99,7 +124,9 @@ class _HomeOrdersScreenState extends State<HomeOrdersScreen>
     setState(() {
       _currentNavIndex = 1; // Switch to Orders tab
     });
-    final status = filterStatus != null ? OrderStatus.fromString(filterStatus) : null;
+    final status = filterStatus != null
+        ? OrderStatus.fromString(filterStatus)
+        : null;
     if (status != null) {
       context.read<OrdersCubit>().setStatusFilter(status);
     } else {
@@ -107,7 +134,10 @@ class _HomeOrdersScreenState extends State<HomeOrdersScreen>
     }
   }
 
-  void _openStatusFilterSheet(BuildContext context, OrderStatus? currentStatus) {
+  void _openStatusFilterSheet(
+    BuildContext context,
+    OrderStatus? currentStatus,
+  ) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -139,7 +169,10 @@ class _HomeOrdersScreenState extends State<HomeOrdersScreen>
                   ),
                   const Divider(),
                   ListTile(
-                    leading: const Icon(Icons.all_inclusive_rounded, color: AppColors.primary),
+                    leading: const Icon(
+                      Icons.all_inclusive_rounded,
+                      color: AppColors.primary,
+                    ),
                     title: const Text('كل الحالات'),
                     trailing: currentStatus == null
                         ? const Icon(Icons.check, color: AppColors.primary)
@@ -152,26 +185,29 @@ class _HomeOrdersScreenState extends State<HomeOrdersScreen>
                   ...OrderStatus.values
                       .where((s) => s != OrderStatus.unknown)
                       .map((status) {
-                    final isSelected = currentStatus == status;
-                    return ListTile(
-                      leading: Container(
-                        width: 12,
-                        height: 12,
-                        decoration: BoxDecoration(
-                          color: status.color,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      title: Text(status.localizedLabel),
-                      trailing: isSelected
-                          ? const Icon(Icons.check, color: AppColors.primary)
-                          : null,
-                      onTap: () {
-                        context.read<OrdersCubit>().setStatusFilter(status);
-                        Navigator.of(ctx).pop();
-                      },
-                    );
-                  }),
+                        final isSelected = currentStatus == status;
+                        return ListTile(
+                          leading: Container(
+                            width: 12,
+                            height: 12,
+                            decoration: BoxDecoration(
+                              color: status.color,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          title: Text(status.localizedLabel),
+                          trailing: isSelected
+                              ? const Icon(
+                                  Icons.check,
+                                  color: AppColors.primary,
+                                )
+                              : null,
+                          onTap: () {
+                            context.read<OrdersCubit>().setStatusFilter(status);
+                            Navigator.of(ctx).pop();
+                          },
+                        );
+                      }),
                 ],
               ),
             ),
@@ -183,6 +219,48 @@ class _HomeOrdersScreenState extends State<HomeOrdersScreen>
 
   @override
   Widget build(BuildContext context) {
+    final canAccess = _canAccessDashboard(context);
+
+    // Guard against unauthorized dashboard access
+    if (!canAccess && _currentNavIndex == 0) {
+      _currentNavIndex = 1;
+    }
+
+    final bottomNavItems = canAccess
+        ? const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.grid_view_outlined),
+              activeIcon: Icon(Icons.grid_view_rounded),
+              label: 'الرئيسية',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.assignment_outlined),
+              activeIcon: Icon(Icons.assignment_rounded),
+              label: 'الطلبات',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.person_outline_rounded),
+              activeIcon: Icon(Icons.person_rounded),
+              label: 'حسابي',
+            ),
+          ]
+        : const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.assignment_outlined),
+              activeIcon: Icon(Icons.assignment_rounded),
+              label: 'الطلبات',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.person_outline_rounded),
+              activeIcon: Icon(Icons.person_rounded),
+              label: 'حسابي',
+            ),
+          ];
+
+    final bottomNavCurrentIndex = canAccess
+        ? _currentNavIndex.clamp(0, 2)
+        : (_currentNavIndex == 2 ? 1 : 0);
+
     return Scaffold(
       body: SafeArea(
         child: IndexedStack(
@@ -217,36 +295,30 @@ class _HomeOrdersScreenState extends State<HomeOrdersScreen>
           ),
         ),
         child: BottomNavigationBar(
-          currentIndex: _currentNavIndex,
+          currentIndex: bottomNavCurrentIndex,
           onTap: (index) {
             setState(() {
-              _currentNavIndex = index;
+              if (canAccess) {
+                _currentNavIndex = index;
+              } else {
+                _currentNavIndex = index == 0 ? 1 : 2;
+              }
             });
           },
           backgroundColor: Colors.white,
           selectedItemColor: AppColors.primary,
           unselectedItemColor: AppColors.textMuted,
-          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
-          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
+          selectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 12,
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 12,
+          ),
           elevation: 0,
           type: BottomNavigationBarType.fixed,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.grid_view_outlined),
-              activeIcon: Icon(Icons.grid_view_rounded),
-              label: 'الرئيسية',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.assignment_outlined),
-              activeIcon: Icon(Icons.assignment_rounded),
-              label: 'الطلبات',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline_rounded),
-              activeIcon: Icon(Icons.person_rounded),
-              label: 'حسابي',
-            ),
-          ],
+          items: bottomNavItems,
         ),
       ),
     );
@@ -366,7 +438,10 @@ class _HomeOrdersScreenState extends State<HomeOrdersScreen>
                   onTap: () => _openStatusFilterSheet(context, selectedStatus),
                   borderRadius: BorderRadius.circular(10),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 7,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(10),
@@ -410,10 +485,7 @@ class _HomeOrdersScreenState extends State<HomeOrdersScreen>
           controller: _searchController,
           textDirection: TextDirection.rtl,
           textAlignVertical: TextAlignVertical.center,
-          style: const TextStyle(
-            fontSize: 13,
-            color: AppColors.textPrimary,
-          ),
+          style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
           decoration: InputDecoration(
             hintText: 'رقم الطلب أو اسم العميل',
             hintStyle: const TextStyle(
@@ -426,20 +498,32 @@ class _HomeOrdersScreenState extends State<HomeOrdersScreen>
               color: AppColors.textMuted,
               size: 20,
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 12,
+            ),
             filled: true,
             fillColor: const Color(0xFFF8FAFC),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.cardBorder, width: 1),
+              borderSide: const BorderSide(
+                color: AppColors.cardBorder,
+                width: 1,
+              ),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.cardBorder, width: 1),
+              borderSide: const BorderSide(
+                color: AppColors.cardBorder,
+                width: 1,
+              ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+              borderSide: const BorderSide(
+                color: AppColors.primary,
+                width: 1.5,
+              ),
             ),
           ),
         ),
@@ -456,19 +540,13 @@ class _HomeOrdersScreenState extends State<HomeOrdersScreen>
         labelPadding: const EdgeInsets.symmetric(horizontal: 4),
         indicatorSize: TabBarIndicatorSize.tab,
         indicator: const UnderlineTabIndicator(
-          borderSide: BorderSide(
-            color: AppColors.primary,
-            width: 2.5,
-          ),
+          borderSide: BorderSide(color: AppColors.primary, width: 2.5),
         ),
         dividerColor: AppColors.cardBorder,
         dividerHeight: 1.0,
         labelColor: AppColors.primary,
         unselectedLabelColor: AppColors.textSecondary,
-        labelStyle: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w700,
-        ),
+        labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
         unselectedLabelStyle: const TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w500,
@@ -477,19 +555,13 @@ class _HomeOrdersScreenState extends State<HomeOrdersScreen>
           Tab(
             child: FittedBox(
               fit: BoxFit.scaleDown,
-              child: Text(
-                AppStrings.openOrders,
-                maxLines: 1,
-              ),
+              child: Text(AppStrings.openOrders, maxLines: 1),
             ),
           ),
           Tab(
             child: FittedBox(
               fit: BoxFit.scaleDown,
-              child: Text(
-                AppStrings.completedOrders,
-                maxLines: 1,
-              ),
+              child: Text(AppStrings.completedOrders, maxLines: 1),
             ),
           ),
         ],
@@ -581,7 +653,9 @@ class _HomeOrdersScreenState extends State<HomeOrdersScreen>
   }
 
   List<OrderSummary> _applyLocalFilters(
-      List<OrderSummary> orders, OrderStatus? selectedStatus) {
+    List<OrderSummary> orders,
+    OrderStatus? selectedStatus,
+  ) {
     var result = orders;
     if (_searchQuery.isNotEmpty) {
       final normalizedQuery = _normalizeSearchText(_searchQuery);
@@ -593,9 +667,7 @@ class _HomeOrdersScreenState extends State<HomeOrdersScreen>
       }).toList();
     }
     if (selectedStatus != null) {
-      result = result
-          .where((o) => o.status == selectedStatus)
-          .toList();
+      result = result.where((o) => o.status == selectedStatus).toList();
     }
     return result;
   }
@@ -660,7 +732,9 @@ class _HomeOrdersScreenState extends State<HomeOrdersScreen>
                 builder: (context, constraints) => SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                    ),
                     child: Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -682,7 +756,10 @@ class _HomeOrdersScreenState extends State<HomeOrdersScreen>
                           const SizedBox(height: 6),
                           const Text(
                             AppStrings.pullToRefresh,
-                            style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textMuted,
+                            ),
                           ),
                         ],
                       ),
@@ -694,13 +771,15 @@ class _HomeOrdersScreenState extends State<HomeOrdersScreen>
                 controller: scrollController,
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-                itemCount: filteredOrders.length +
+                itemCount:
+                    filteredOrders.length +
                     (tabData.isLoadingMore ||
                             tabData.errorMessage != null ||
                             (!tabData.hasMore && tabData.orders.isNotEmpty)
                         ? 1
                         : 0),
-                separatorBuilder: (context, index) => const SizedBox(height: 12),
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   if (index == filteredOrders.length) {
                     return _buildPaginationLoader(tabData, tab);
@@ -812,11 +891,7 @@ class _HomeOrdersScreenState extends State<HomeOrdersScreen>
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 32,
-                height: 1,
-                color: AppColors.cardBorder,
-              ),
+              Container(width: 32, height: 1, color: AppColors.cardBorder),
               const SizedBox(width: 8),
               const Text(
                 AppStrings.noMoreOrders,
@@ -827,11 +902,7 @@ class _HomeOrdersScreenState extends State<HomeOrdersScreen>
                 ),
               ),
               const SizedBox(width: 8),
-              Container(
-                width: 32,
-                height: 1,
-                color: AppColors.cardBorder,
-              ),
+              Container(width: 32, height: 1, color: AppColors.cardBorder),
             ],
           ),
         ),

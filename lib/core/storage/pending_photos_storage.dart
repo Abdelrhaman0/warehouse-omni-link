@@ -12,20 +12,20 @@ import '../utils/sha256_util.dart';
 /// and metadata (paths, names, hashes) is tracked per order and photo type in SharedPreferences.
 class PendingPhotosStorage {
   final SharedPreferences _prefs;
-  final Future<Directory> Function()? _baseDirectoryResolver;
+  final Future<Directory> Function()? baseDirectoryResolver;
 
   static const String _keyPrefix = 'pending_photos_order_';
 
   PendingPhotosStorage(
     this._prefs, {
-    Future<Directory> Function()? baseDirectoryResolver,
-  }) : _baseDirectoryResolver = baseDirectoryResolver;
+    this.baseDirectoryResolver,
+  });
 
   String _getKey(int orderId, String category) => '$_keyPrefix${orderId}_$category';
 
   Future<Directory> _getBaseDirectory() async {
-    if (_baseDirectoryResolver != null) {
-      return await _baseDirectoryResolver();
+    if (baseDirectoryResolver != null) {
+      return await baseDirectoryResolver!();
     }
     try {
       return await getApplicationDocumentsDirectory();

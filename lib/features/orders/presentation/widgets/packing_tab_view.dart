@@ -37,40 +37,6 @@ class PackingTabView extends StatelessWidget {
           ],
 
           // 3. Packaging Guidelines Banner
-          // _buildPackingTipsCard(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPackingTipsCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFEF3C7),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFFDE68A)),
-      ),
-      child: const Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.info_outline_rounded,
-            color: Color(0xFFB45309),
-            size: 22,
-          ),
-          SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'تأكد من تغليف المواد القابلة للكسر بفقاعات الحماية وإلصاق بوليصة الشحن بوضوح على الطرد قبل التقاط الصور.',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF92400E),
-                height: 1.4,
-              ),
-            ),
-          ),
         ],
       ),
     );

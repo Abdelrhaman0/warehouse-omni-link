@@ -5,7 +5,7 @@ class ApiEndpoints {
 
   /// Default base URL pointing to test environment.
   /// Can be overridden at runtime or via compile-time environment definition.
-  static const String defaultBaseUrl = 'https://omni-link.net/api';
+  static const String defaultBaseUrl = 'https://test.omni-link.net/api';
 
   static String baseUrl = const String.fromEnvironment(
     'API_BASE_URL',

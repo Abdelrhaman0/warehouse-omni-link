@@ -9,18 +9,24 @@ import '../features/auth/presentation/widgets/session_expired_dialog.dart';
 import '../features/orders/data/orders_repository.dart';
 import '../core/storage/pending_photos_storage.dart';
 import '../features/orders/presentation/cubits/orders_cubit.dart';
+import '../features/safes/data/safes_repository.dart';
+import '../features/safes/presentation/cubits/safes_list_cubit.dart';
+import '../features/safes/presentation/cubits/safe_operation_cubit.dart';
+import '../features/safes/presentation/cubits/safe_details_cubit.dart';
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
 
 class OmniLinkWarehouseApp extends StatelessWidget {
   final AuthRepository authRepository;
   final OrdersRepository ordersRepository;
+  final SafesRepository? safesRepository;
   final PendingPhotosStorage? pendingPhotosStorage;
 
   const OmniLinkWarehouseApp({
     super.key,
     required this.authRepository,
     required this.ordersRepository,
+    this.safesRepository,
     this.pendingPhotosStorage,
   });
 
@@ -30,6 +36,8 @@ class OmniLinkWarehouseApp extends StatelessWidget {
       providers: [
         RepositoryProvider<AuthRepository>.value(value: authRepository),
         RepositoryProvider<OrdersRepository>.value(value: ordersRepository),
+        if (safesRepository != null)
+          RepositoryProvider<SafesRepository>.value(value: safesRepository!),
         if (pendingPhotosStorage != null)
           RepositoryProvider<PendingPhotosStorage>.value(value: pendingPhotosStorage!),
       ],
@@ -41,6 +49,17 @@ class OmniLinkWarehouseApp extends StatelessWidget {
           BlocProvider<OrdersCubit>(
             create: (context) => OrdersCubit(ordersRepository: ordersRepository),
           ),
+          if (safesRepository != null) ...[
+            BlocProvider<SafesListCubit>(
+              create: (context) => SafesListCubit(safesRepository: safesRepository!),
+            ),
+            BlocProvider<SafeOperationCubit>(
+              create: (context) => SafeOperationCubit(safesRepository: safesRepository!),
+            ),
+            BlocProvider<SafeDetailsCubit>(
+              create: (context) => SafeDetailsCubit(safesRepository: safesRepository!),
+            ),
+          ],
         ],
         child: MaterialApp(
           navigatorKey: AppRouter.navigatorKey,
@@ -64,6 +83,7 @@ class OmniLinkWarehouseApp extends StatelessWidget {
             return BlocListener<AuthCubit, AuthState>(
               listener: (context, state) {
                 if (state is SessionExpired) {
+                  context.read<OrdersCubit>().reset();
                   final navContext = AppRouter.navigatorKey.currentContext ?? context;
                   SessionExpiredDialog.show(
                     navContext,
@@ -74,6 +94,8 @@ class OmniLinkWarehouseApp extends StatelessWidget {
                       );
                     },
                   );
+                } else if (state is Unauthenticated) {
+                  context.read<OrdersCubit>().reset();
                 }
               },
               child: child ?? const SizedBox.shrink(),

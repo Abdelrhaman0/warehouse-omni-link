@@ -10,6 +10,8 @@ import 'features/auth/data/auth_remote_data_source.dart';
 import 'features/auth/data/auth_repository.dart';
 import 'features/orders/data/orders_remote_data_source.dart';
 import 'features/orders/data/orders_repository.dart';
+import 'features/safes/data/safes_remote_data_source.dart';
+import 'features/safes/data/safes_repository.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -45,10 +47,17 @@ void main() async {
     mediaHashStorage: mediaHashStorage,
   );
 
+  // Safes Layer
+  final safesRemoteDataSource = SafesRemoteDataSourceImpl(dioClient);
+  final safesRepository = SafesRepositoryImpl(
+    remoteDataSource: safesRemoteDataSource,
+  );
+
   runApp(
     OmniLinkWarehouseApp(
       authRepository: authRepository,
       ordersRepository: ordersRepository,
+      safesRepository: safesRepository,
       pendingPhotosStorage: pendingPhotosStorage,
     ),
   );
