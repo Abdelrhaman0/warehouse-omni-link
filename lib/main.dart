@@ -1,3 +1,7 @@
+import 'dart:async';
+
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'app/app.dart';
@@ -12,9 +16,19 @@ import 'features/orders/data/orders_remote_data_source.dart';
 import 'features/orders/data/orders_repository.dart';
 import 'features/safes/data/safes_remote_data_source.dart';
 import 'features/safes/data/safes_repository.dart';
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    unawaited(_initializeFcmTokenLogging());
+  } catch (error) {
+    debugPrint('Firebase initialization failed: $error');
+  }
 
   // Local storage initialization
   final sharedPreferences = await SharedPreferences.getInstance();
@@ -61,4 +75,28 @@ void main() async {
       pendingPhotosStorage: pendingPhotosStorage,
     ),
   );
+}
+
+Future<void> _initializeFcmTokenLogging() async {
+  try {
+    final messaging = FirebaseMessaging.instance;
+    final settings = await messaging.requestPermission();
+    debugPrint('FCM notification permission: ${settings.authorizationStatus}');
+
+    final token = await messaging.getToken();
+    if (token == null) {
+      debugPrint('FCM Registration Token: unavailable');
+    } else {
+      debugPrint('FCM Registration Token: $token');
+    }
+
+    messaging.onTokenRefresh.listen(
+      (token) => debugPrint('FCM Registration Token (refreshed): $token'),
+      onError: (Object error) {
+        debugPrint('FCM token refresh failed: $error');
+      },
+    );
+  } catch (error) {
+    debugPrint('FCM token retrieval failed: $error');
+  }
 }

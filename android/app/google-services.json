@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1057279140497",
+    "project_id": "warehousestoreomni-link",
+    "storage_bucket": "warehousestoreomni-link.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1057279140497:android:0611bdc5bde28117bb5530",
+        "android_client_info": {
+          "package_name": "com.example.warehouse_store_keeper"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBSB1_v1ZPdj_uk8rQJeRUugY90sLKfI7s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
